@@ -3,7 +3,6 @@
 Tool for reading Coinmotion transactions, categorizing them, and generating an output file suitable for FIFO-based tax calculation.
 
 ```mermaid
-title: Flowchart
 flowchart TD
     A[./input/*.xls] --> B[read_xls(file_path)]
     B --> C[create_objects(result_1, result_2, result_3)]
