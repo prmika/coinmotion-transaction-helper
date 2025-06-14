@@ -144,11 +144,15 @@ if __name__ == "__main__":
     input_folder = './input/'
     file_path = None
 
-    # Find the first .xls file in the input folder
-    for file in os.listdir(input_folder):
-        if file.endswith('.xls'):
-            file_path = os.path.join(input_folder, file)
-            break
+    # Find .xls files in the input folder
+    xls_files = [file for file in os.listdir(input_folder) if file.endswith('.xls')]
+    
+    if len(xls_files) == 0:
+        print("No .xls file found in the input folder")
+    elif len(xls_files) > 1:
+        raise ValueError(f"Multiple .xls files found in input folder. Expected exactly one, but found {len(xls_files)}: {xls_files}")
+    else:
+        file_path = os.path.join(input_folder, xls_files[0])
 
     if file_path:
         # Read the xls file
