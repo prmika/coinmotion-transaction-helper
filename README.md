@@ -1,32 +1,43 @@
 # coinmotion-transaction-helper
 
-Tool for reading Coinmotion transactions, categorizing them, and generating an output file suitable for FIFO-based tax calculation.
+Tool for reading Coinmotion transactions, grouping them by currency, and generating an Excel output file. Coinmotion reports are now CSV, so the default flow uses the CSV reader.
+
 ```mermaid
 flowchart TD
-    A["./input/*.xls"] --> B["read_xls(file_path)"]
-    B --> C["create_objects(result_1, result_2, result_3)"]
-    C --> D["write_xls(objects)"]
+    A["./input/*.csv"] --> B["read_csv(file_path)"]
+    B --> C["create_tax_report(objects)"]
+    C --> D["write_xls(results)"]
     D --> E["./output/output.xlsx"]
 ```
 
 ## Usage
 
-1. Place one .csv file in the ./input/ folder.
-2. Run the Python script (main.py).
-3. The processed results will appear in the ./output/ folder as output.xlsx.
+1. Export your Coinmotion report as `.csv`.
+2. Place exactly one `.csv` file in `./input/`.
+3. Run `main.py`.
+4. The processed results will appear in `./output/output.xlsx`.
+
+```powershell
+python .\main.py
+```
 
 ## Features
 
-- Reads .csv file containing Coinmotion transactions.
-- Filters transactions by type (Myynti, Osto, Sisäinen siirto) and status (Valmis).
-- Groups transactions by crypto type.
-- Sorts transactions by date and exports them to Excel.
+- Reads Coinmotion `.csv` transaction exports.
+- Normalizes and groups transactions by currency.
+- Generates a per-currency report structure and writes to Excel.
+
+## Project Structure
+
+- `readers/CsvReader.py`: CSV parsing for Coinmotion exports.
+- `processor.py`: Builds the per-currency report structure used for output.
+- `writers/XlsWriter.py`: Writes results into `output/output.xlsx`.
 
 ## Dependencies
 
 - Python 3.x
-- [xlrd](https://pypi.org/project/xlrd/)
 - [openpyxl](https://pypi.org/project/openpyxl/)
+- [xlrd](https://pypi.org/project/xlrd/) (legacy `.xls` reader support)
 
 ## Installation
 
