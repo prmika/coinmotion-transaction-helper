@@ -11,13 +11,13 @@ flowchart TD
 
 ## Usage
 
-1. Place one or more .xls files in the ./input/ folder.
+1. Place one .csv file in the ./input/ folder.
 2. Run the Python script (main.py).
 3. The processed results will appear in the ./output/ folder as output.xlsx.
 
 ## Features
 
-- Reads .xls files containing Coinmotion transactions.
+- Reads .csv file containing Coinmotion transactions.
 - Filters transactions by type (Myynti, Osto, Sisäinen siirto) and status (Valmis).
 - Groups transactions by crypto type.
 - Sorts transactions by date and exports them to Excel.
