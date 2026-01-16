@@ -1,6 +1,5 @@
 import os
 from readers.CsvReader import read_csv
-from readers.XlsReader import read_xls
 from writers.XlsWriter import write_xls
 from processor import create_tax_report
 
@@ -8,8 +7,6 @@ if __name__ == "__main__":
     input_folder = './input/'
     file_path = None
 
-    # Find .xls files in the input folder, fallback to .csv
-    xls_files = [file for file in os.listdir(input_folder) if file.endswith('.xls')]
     csv_files = [file for file in os.listdir(input_folder) if file.endswith('.csv')]
 
     if len(csv_files) < 1:
@@ -31,7 +28,7 @@ if __name__ == "__main__":
         print("Read successfully. Processing data...")
         result = create_tax_report(objects)
 
-        print("Processing successful. Writing output to output/output.xlsx")
+        print("Processing successful. Writing outputs...")
         
         write_xls(result)
         print("Done.")

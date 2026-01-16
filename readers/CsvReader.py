@@ -8,14 +8,14 @@ def read_csv(file_path: str):
         for row in reader:
             try:
                 transactions.append({
-                    "fromCurrency": row["fromCurrency"],
-                    "toCurrency": row["toCurrency"],
+                    "fromCurrency": row["fromCurrency"].strip().upper(),
+                    "toCurrency": row["toCurrency"].strip().upper(),
                     "type": row["type"],
                     "eurAmount": float(row["eurAmount"]) if row["eurAmount"] else 0.0,
                     "cryptoAmount": float(row["cryptoAmount"]) if row["cryptoAmount"] else 0.0,
                     "rate": float(row["rate"]) if row["rate"] else 0.0,
                     "fee": float(row["fee"]) if row["fee"] else 0.0,
-                    "feeCurrency": row["feeCurrency"],
+                    "feeCurrency": row["feeCurrency"].strip().upper(),
                     "time": row["time"],
                     "source": "Coinmotion Oy"
                 })
@@ -27,30 +27,32 @@ def read_csv(file_path: str):
     return create_objects_from_csv(transactions)
 
 def create_objects_from_csv(transactions):
-    result_1 = []  # sell transactions that has fromCurrency else that 'EUR' or 'eur'
-    result_2 = []  # buy transactions that has toCurrency else that 'EUR' or 'eur'
-    result_3 = []  # Everything else
+    sells = []
+    buys = []
+    transfers = []
 
     for transaction in transactions:
-        from_currency = transaction["fromCurrency"].strip().lower()
-        to_currency = transaction["toCurrency"].strip().lower()
+        from_currency = transaction["fromCurrency"].strip().upper()
+        to_currency = transaction["toCurrency"].strip().upper()
         type_ = transaction["type"].strip().lower()
         
         if type_ in ['deposit', 'withdrawal']:
-            # Skip deposits and withdrawals
             continue
 
-        if from_currency != 'EUR':
-            result_1.append(transaction)
-        if to_currency == 'EUR':
-            if type_ == 'deposit' or type_ == 'withdrawal':
-                continue
-            result_2.append(transaction)
-        else:
-            if transaction["type"].strip().lower() == 'account_transfer_in':
-                result_3.append(handleAccount_transfer_in(transaction))
+        if type_ == 'account_transfer_in':
+            transfers.append(handleAccount_transfer_in(transaction))
+            continue
 
-    objects = result_1 + result_2 + result_3
+        if from_currency == 'EUR' and to_currency != 'EUR':
+            transaction["type"] = "buy"
+            buys.append(transaction)
+            continue
+
+        if to_currency == 'EUR' and from_currency != 'EUR':
+            transaction["type"] = "sell"
+            sells.append(transaction)
+
+    objects = sells + buys + transfers
 
     return sort_by_date(objects)
 

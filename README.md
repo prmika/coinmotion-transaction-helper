@@ -15,7 +15,7 @@ flowchart TD
 1. Export your Coinmotion report as `.csv`.
 2. Place exactly one `.csv` file in `./input/`.
 3. Run `main.py`.
-4. The processed results will appear in `./output/output.xlsx`.
+4. The processed results will appear in `./output/` as one `.xlsx` per currency (each file includes a yearly summary and the full transaction list).
 
 ```powershell
 python .\main.py
@@ -31,7 +31,7 @@ python .\main.py
 
 - `readers/CsvReader.py`: CSV parsing for Coinmotion exports.
 - `processor.py`: Builds the per-currency report structure used for output.
-- `writers/XlsWriter.py`: Writes results into `output/output.xlsx`.
+- `writers/XlsWriter.py`: Writes one output file per currency with a yearly summary and transactions.
 
 ## Dependencies
 
@@ -47,3 +47,11 @@ python .\main.py
    ```sh
    pip install -r requirements.txt
    ```
+
+## Tests
+
+Run the test suite with:
+
+```powershell
+python -m pytest
+```
