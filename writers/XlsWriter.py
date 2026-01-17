@@ -1,6 +1,7 @@
 import openpyxl
 import os
 import re
+from datetime import datetime
 
 OUTPUT_HEADERS = [
     "Time",
@@ -51,20 +52,20 @@ def write_xls(objects):
             for item in data.get("transactions", []):
                 ws.append(
                     [
-                        item["time"],
+                        _format_time(item["time"]),
                         item["type"],
                         item["cryptoAmount"],
                         item["rate"],
-                        item["eurAmount"],
+                        _format_eur(item["eurAmount"]),
                         item["source"],
                         item["fromCurrency"],
                         item["toCurrency"],
-                        item["fee"],
+                        _format_eur(item["fee"]),
                         item["feeCurrency"],
-                        item.get("remainingQuantity", ""),
-                        item.get("costBasis", ""),
-                        item.get("assumedCost", ""),
-                        item.get("costBasisUsed", ""),
+                        _format_remaining_quantity(item.get("remainingQuantity", "")),
+                        _format_eur(item.get("costBasis", "")),
+                        _format_eur(item.get("assumedCost", "")),
+                        _format_eur(item.get("costBasisUsed", "")),
                         item.get("costBasisMethod", ""),
                     ]
                 )
@@ -82,6 +83,30 @@ def _sanitize_filename(name):
     return cleaned or "UNKNOWN"
 
 
+def _format_time(value):
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S%z")
+        return parsed.strftime("%d.%m.%Y %H:%M:%S")
+    except (TypeError, ValueError):
+        return value
+
+
+def _format_eur(value):
+    try:
+        return round(float(value), 2)
+    except (TypeError, ValueError):
+        return value
+
+
+def _format_remaining_quantity(value):
+    try:
+        if abs(float(value)) <= 1e-12:
+            return 0.0
+        return float(value)
+    except (TypeError, ValueError):
+        return value
+
+
 def _write_year_summary(ws, years):
     ws.append(["Yearly Summary"])
     ws.append(YEAR_HEADERS)
@@ -92,9 +117,9 @@ def _write_year_summary(ws, years):
             [
                 year,
                 summary.get("fromTime", ""),
-                summary.get("wins", 0),
-                summary.get("losses", 0),
-                summary.get("total", 0),
+                _format_eur(summary.get("wins", 0)),
+                _format_eur(summary.get("losses", 0)),
+                _format_eur(summary.get("total", 0)),
             ]
         )
 

@@ -1,6 +1,7 @@
 import os
 from readers.CsvReader import read_csv
 from writers.XlsWriter import write_xls
+from writers.PdfWriter import write_pdf
 from processor import create_tax_report
 
 if __name__ == "__main__":
@@ -31,6 +32,7 @@ if __name__ == "__main__":
         print("Processing successful. Writing outputs...")
         
         write_xls(result)
+        write_pdf(result)
         print("Done.")
 
     except Exception as e:
