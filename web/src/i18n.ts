@@ -1,0 +1,191 @@
+export type Language = "fi" | "en";
+
+export const translations = {
+  fi: {
+    app: {
+      title: "Kryptovaluuttojen luovutusvoittoraportti generaattori",
+      subtitle:
+        "Luo luovutusvoittolaskelmat välittäjän tapahtumista muutamassa minuutissa.",
+      heroTitle: "Veroraportoinnista helpompaa ja halvempaa (ilmaista!)",
+      heroDescription:
+        "Työkalu muuntaa välittäjän tapahtumat PDF-veroraporteiksi FIFO-laskennalla. Valitse välittäjä aloittaaksesi.",
+      stats: {
+        outputLabel: "Tuloste",
+        outputValue: "PDF-zip",
+        methodLabel: "Menetelmä",
+        methodValue: "FIFO + Hankintameno-olettama",
+        privacyLabel: "Tietosuoja",
+        privacyValue: "Paikallinen",
+      },
+      brokersTitle: "Tuetut välittäjät",
+      brokersDescription:
+        "Lisää integraatioita on tulossa. Valitse välittäjä aloittaaksesi.",
+      coinmotionDescription: "",
+      available: "Saatavilla",
+      moreBrokers: "Lisää välittäjiä tulossa",
+      comingSoon: "Ehdota välittäjää",
+      planned: "Suunnitteilla",
+      howItWorks: "Näin se toimii",
+      steps: [
+        "Vie välittäjän tapahtumat CSV-tiedostoon.",
+        "Hyväksy vastuuvapauslauseke ja lataa tiedosto.",
+        "Lataa zip-paketti, jossa on PDF-raportit valuutoittain.",
+      ],
+    },
+    comments: {
+      title: "Kommentit ja kysymykset",
+      description:
+        "Anna palautetta tai kysy. Vastaukset näkyvät täällä jatkossa.",
+      askTitle: "Kysy kysymys",
+      askDescription: "Tämä lomake on vielä luonnos. Tulossa myöhemmin.",
+      nameLabel: "Nimi",
+      namePlaceholder: "Nimesi",
+      emailLabel: "Sähköposti",
+      emailPlaceholder: "nimi@email.com",
+      questionLabel: "Kysymys",
+      questionPlaceholder: "Mitä haluaisit kysyä?",
+      sendButton: "Lähetä kysymys",
+      latestTitle: "Uusimmat vastaukset",
+      empty: "Ei kysymyksiä vielä. Ole ensimmäinen!",
+    },
+    modal: {
+      eyebrow: "Coinmotion",
+      title: "Luo luovutusvoittoraportti",
+      disclaimerTitle: "Vastuuvapauslauseke",
+      disclaimerParagraphs: [
+        "Tämä palvelu tuottaa automaattisesti laskennallisen raportin Coinmotionin transaktiotietojen perusteella.",
+        "Raportti on suuntaa-antava eikä ole veroneuvontaa.",
+        "Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista tiedoista.",
+        "Palvelu ei vastaa mahdollisista veroseuraamuksista tai virheistä, jotka aiheutuvat raportin käytöstä.",
+      ],
+      disclaimerAcknowledge:
+        "Ymmärrän, että raportti on suuntaa-antava eikä korvaa virallista veroneuvontaa.",
+      instructionsTitle: "Miten saan Tapahtumaraportin CSV-muodossa",
+      instructionsSteps: [
+        "Avaa Coinmotion ja siirry raportointiin.",
+        "Tapahtumaraportit kohdassa klikkaa 'Lataa CSV tiedosto'.",
+        "Tiedosto tallentuu tietokoneellesi ja voit ladata sen tänne.",
+      ],
+      videoTitle: "Video-ohje",
+      videoDescription: "Lisää tähän lyhyt opastusvideo.",
+      uploadTitle: "Lataa CSV",
+      uploadDescription:
+        "Palvelu palauttaa zip-paketin, jossa on PDF-raportit valuutoittain.",
+      yearLabel: "Raportin vuosi (valinnainen)",
+      yearHint: "Jätä tyhjäksi, jos haluat kaikki vuodet.",
+      chooseFile: "Valitse tiedosto",
+      noFile: "Ei tiedostoa valittuna",
+      generate: "Luo luovutusvoittolaskelma",
+      generating: "Luodaan…",
+      apiEndpoint: "API-osoite",
+      supportTitle: "Raportti on valmis",
+      supportDescription:
+        "Luovutusvoittolaskelma on luotu. Jos tämä säästi aikaa, voit halutessasi tukea jatkokehitystä.",
+      buyCoffee: "Buy me a coffee",
+      download: "Lataa zip",
+      previous: "Edellinen",
+      next: "Seuraava",
+      success: "Raportti on valmis. Lataa zip nähdäksesi PDF:t.",
+      errors: {
+        fileRequired: "Valitse CSV-tiedosto ensin.",
+        yearFormat: "Vuoden tulee olla muodossa VVVV.",
+        uploadFailed: "Lataus epäonnistui.",
+      },
+      enlargeVideo: "Klikkaa suurentaaksesi",
+    },
+  },
+  en: {
+    app: {
+      title: "Crypto Tax Report Builder",
+      subtitle:
+        "Create country-ready PDF tax reports from your broker transaction statements in minutes.",
+      heroTitle: "Make tax reporting simple",
+      heroDescription:
+        "This tool converts broker statements into PDF tax reports with FIFO-based cost basis calculations. Start by choosing your broker below.",
+      stats: {
+        outputLabel: "Output",
+        outputValue: "PDF zip",
+        methodLabel: "Method",
+        methodValue: "FIFO + assumptions",
+        privacyLabel: "Privacy",
+        privacyValue: "Local dev",
+      },
+      brokersTitle: "Supported brokers",
+      brokersDescription:
+        "More integrations are planned. Select Coinmotion to get started.",
+      coinmotionDescription: "CSV statement import",
+      available: "Available",
+      moreBrokers: "More brokers",
+      comingSoon: "Coming soon",
+      planned: "Planned",
+      howItWorks: "How it works",
+      steps: [
+        "Export your broker transaction statement as CSV.",
+        "Review the disclaimer and upload the file.",
+        "Download a zip file containing PDF reports per currency.",
+      ],
+    },
+    comments: {
+      title: "Comments & Questions",
+      description:
+        "Share feedback or ask a question. Answers will appear here in future updates.",
+      askTitle: "Ask a question",
+      askDescription:
+        "This form is a placeholder. Submissions will be enabled later.",
+      nameLabel: "Name",
+      namePlaceholder: "Your name",
+      emailLabel: "Email",
+      emailPlaceholder: "name@email.com",
+      questionLabel: "Question",
+      questionPlaceholder: "What would you like to know?",
+      sendButton: "Send question",
+      latestTitle: "Latest answers",
+      empty: "No questions yet. Be the first to ask!",
+    },
+    modal: {
+      eyebrow: "Coinmotion",
+      title: "Generate your tax report",
+      disclaimerTitle: "Disclaimer",
+      disclaimerParagraphs: [
+        "This service generates an automated, calculated report based on transaction data from Coinmotion.",
+        "The report is for informational purposes only and does not constitute tax advice.",
+        "The user is solely responsible for verifying the accuracy of the data and the information submitted to tax authorities.",
+        "The service provider is not responsible for any tax consequences or errors resulting from the use of this report.",
+      ],
+      disclaimerAcknowledge:
+        "I understand that this report is informational only and does not replace official tax advice.",
+      instructionsTitle: "How to export your CSV",
+      instructionsSteps: [
+        "Open Coinmotion and navigate to transactions.",
+        "Choose the CSV export for the full date range.",
+        "Save the CSV file to your computer.",
+      ],
+      videoTitle: "Video guide",
+      videoDescription: "Add a short walkthrough clip here.",
+      uploadTitle: "Upload CSV",
+      uploadDescription:
+        "We will return a zip file containing one PDF report per currency.",
+      yearLabel: "Report year (optional)",
+      yearHint: "Leave empty to include all years found in the report.",
+      chooseFile: "Choose file",
+      noFile: "No file selected",
+      generate: "Generate PDF zip",
+      generating: "Generating…",
+      apiEndpoint: "API endpoint",
+      supportTitle: "Your report is ready",
+      supportDescription:
+        "Your PDF zip has been generated. If this tool saved you time, you can support future improvements below.",
+      buyCoffee: "Buy me a coffee",
+      download: "Download zip",
+      previous: "Previous",
+      next: "Next",
+      success: "Your report is ready. Download the zip file to view the PDFs.",
+      errors: {
+        fileRequired: "Select a CSV file first.",
+        yearFormat: "Year must be in YYYY format.",
+        uploadFailed: "Upload failed.",
+      },
+      enlargeVideo: "Click to enlarge",
+    },
+  },
+} as const;

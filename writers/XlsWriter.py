@@ -21,6 +21,7 @@ OUTPUT_HEADERS = [
     "Assumed Cost €",
     "Cost Basis Used",
     "Cost Basis Method",
+    "Profit/Loss €",
 ]
 
 YEAR_HEADERS = [
@@ -70,6 +71,7 @@ def write_xls(objects):
                         _format_eur(item.get("assumedCost", "")),
                         _format_eur(item.get("costBasisUsed", "")),
                         item.get("costBasisMethod", ""),
+                        _format_eur(item.get("profitLoss", "")),
                     ]
                 )
 
@@ -103,9 +105,10 @@ def _format_eur(value):
 
 def _format_remaining_quantity(value):
     try:
-        if abs(float(value)) <= 1e-12:
+        amount = float(value)
+        if abs(amount) <= 1e-8:
             return 0.0
-        return float(value)
+        return round(amount, 8)
     except (TypeError, ValueError):
         return value
 

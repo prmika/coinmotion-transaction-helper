@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { translations, type Language } from "../i18n";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 type ModalStep = "disclaimer" | "instructions" | "upload" | "support";
@@ -8,12 +9,14 @@ type CoinmotionModalProps = {
   isOpen: boolean;
   apiBaseUrl: string;
   onClose: () => void;
+  language: Language;
 };
 
 function CoinmotionModal({
   isOpen,
   apiBaseUrl,
   onClose,
+  language,
 }: CoinmotionModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -21,6 +24,10 @@ function CoinmotionModal({
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const [step, setStep] = useState<ModalStep>("disclaimer");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const t = translations[language].modal;
 
   useEffect(() => {
     if (!isOpen) {
@@ -29,6 +36,8 @@ function CoinmotionModal({
       setErrorMessage(null);
       setHasAcknowledged(false);
       setStep("disclaimer");
+      setSelectedYear("");
+      setIsPreviewOpen(false);
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl);
         setDownloadUrl(null);
@@ -59,7 +68,13 @@ function CoinmotionModal({
     event.preventDefault();
 
     if (!file) {
-      setErrorMessage("Select a CSV file first.");
+      setErrorMessage(t.errors.fileRequired);
+      setStatus("error");
+      return;
+    }
+
+    if (selectedYear && !/^[0-9]{4}$/.test(selectedYear)) {
+      setErrorMessage(t.errors.yearFormat);
       setStatus("error");
       return;
     }
@@ -71,7 +86,12 @@ function CoinmotionModal({
     formData.append("file", file);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/report/pdf-zip`, {
+      const url = new URL(`${apiBaseUrl}/report/pdf-zip`);
+      if (selectedYear) {
+        url.searchParams.set("year", selectedYear);
+      }
+
+      const response = await fetch(url.toString(), {
         method: "POST",
         body: formData,
       });
@@ -80,11 +100,11 @@ function CoinmotionModal({
         const contentType = response.headers.get("content-type");
         if (contentType?.includes("application/json")) {
           const data = await response.json();
-          throw new Error(data?.detail || "Upload failed.");
+          throw new Error(data?.detail || t.errors.uploadFailed);
         }
 
         const text = await response.text();
-        throw new Error(text || "Upload failed.");
+        throw new Error(text || t.errors.uploadFailed);
       }
 
       const blob = await response.blob();
@@ -93,7 +113,8 @@ function CoinmotionModal({
       setStatus("success");
       setStep("support");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Upload failed.";
+      const message =
+        error instanceof Error ? error.message : t.errors.uploadFailed;
       setErrorMessage(message);
       setStatus("error");
     }
@@ -110,7 +131,7 @@ function CoinmotionModal({
         <header className="modal__header">
           <div>
             <p className="modal__eyebrow">Coinmotion</p>
-            <h2>Generate your tax report</h2>
+            <h2>{t.title}</h2>
           </div>
           <button
             type="button"
@@ -124,31 +145,13 @@ function CoinmotionModal({
 
         {step === "disclaimer" && (
           <section className="modal__section">
-            <h3>Disclaimer</h3>
+            <h3>{t.disclaimerTitle}</h3>
             <div className="modal__copy">
-              {/* Tämä palvelu tuottaa automaattisesti laskennallisen raportin
-              Coinmotionin transaktiotietojen perusteella. Raportti on
-              suuntaa-antava eikä ole veroneuvontaa. Käyttäjä vastaa itse
-              tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista
-              tiedoista. Palvelu ei vastaa mahdollisista veroseuraamuksista tai
-              virheistä, jotka aiheutuvat raportin käytöstä. ☑ Ymmärrän, että
-              raportti on suuntaa-antava eikä korvaa virallista veroneuvontaa. */}
-              <p className="muted">
-                This service generates an automated, calculated report based on
-                transaction data from Coinmotion.
-              </p>
-              <p className="muted">
-                The report is for informational purposes only and does not
-                constitute tax advice.
-              </p>
-              <p className="muted">
-                The user is solely responsible for verifying the accuracy of the
-                data and the information submitted to tax authorities.
-              </p>
-              <p className="muted">
-                The service provider is not responsible for any tax consequences
-                or errors resulting from the use of this report.
-              </p>
+              {t.disclaimerParagraphs.map((paragraph) => (
+                <p className="muted" key={paragraph}>
+                  {paragraph}
+                </p>
+              ))}
             </div>
             <label className="checkbox">
               <input
@@ -156,14 +159,11 @@ function CoinmotionModal({
                 checked={hasAcknowledged}
                 onChange={(event) => setHasAcknowledged(event.target.checked)}
               />
-              <span>
-                I understand that this report is informational only and does not
-                replace official tax advice.
-              </span>
+              <span>{t.disclaimerAcknowledge}</span>
             </label>
             <div className="modal__actions">
               <button type="button" className="secondary" onClick={onClose}>
-                Previous
+                {t.previous}
               </button>
               <button
                 type="button"
@@ -171,7 +171,7 @@ function CoinmotionModal({
                 disabled={!hasAcknowledged}
                 onClick={() => setStep("instructions")}
               >
-                Next
+                {t.next}
               </button>
             </div>
           </section>
@@ -179,21 +179,30 @@ function CoinmotionModal({
 
         {step === "instructions" && (
           <section className="modal__section">
-            <h3>How to export your CSV</h3>
+            <h3>{t.instructionsTitle}</h3>
             <div className="modal__page">
               <div className="modal__copy">
                 <ol className="steps">
-                  <li>Open Coinmotion and navigate to transactions.</li>
-                  <li>Choose the CSV export for the full date range.</li>
-                  <li>Save the CSV file to your computer.</li>
+                  {t.instructionsSteps.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
                 </ol>
               </div>
-              <div className="video-placeholder">
-                <div>
-                  <p className="video-placeholder__title">Video guide</p>
-                  <p className="muted">Add a short walkthrough clip here.</p>
-                </div>
-              </div>
+              <button
+                type="button"
+                className="video-placeholder"
+                onClick={() => setIsPreviewOpen(true)}
+                aria-label={t.videoTitle}
+              >
+                <img
+                  src="/src/assets/coinmotion_help.gif"
+                  alt={t.videoTitle}
+                  className="video-placeholder__media"
+                />
+                <span className="video-placeholder__hint">
+                  {t.enlargeVideo}
+                </span>
+              </button>
             </div>
             <div className="modal__actions">
               <button
@@ -201,14 +210,14 @@ function CoinmotionModal({
                 className="secondary"
                 onClick={() => setStep("disclaimer")}
               >
-                Previous
+                {t.previous}
               </button>
               <button
                 type="button"
                 className="primary"
                 onClick={() => setStep("upload")}
               >
-                Next
+                {t.next}
               </button>
             </div>
           </section>
@@ -216,79 +225,74 @@ function CoinmotionModal({
 
         {step === "upload" && (
           <section className="modal__section">
-            <h3>Upload CSV</h3>
-            <p className="muted">
-              We will return a zip file containing one PDF report per currency.
-            </p>
+            <h3>{t.uploadTitle}</h3>
+            <p className="muted">{t.uploadDescription}</p>
             <form className="upload" onSubmit={handleSubmit}>
+              <label className="field-row">
+                <span>{t.yearLabel}</span>
+                <input
+                  type="number"
+                  min="2009"
+                  max="2100"
+                  placeholder="2025"
+                  value={selectedYear}
+                  onChange={(event) => setSelectedYear(event.target.value)}
+                />
+                <span className="muted">{t.yearHint}</span>
+              </label>
               <label className="file-input">
                 <input type="file" accept=".csv" onChange={handleFileChange} />
-                <span className="file-input__button">Choose file</span>
+                <span className="file-input__button">{t.chooseFile}</span>
                 <span className="file-input__name">
-                  {file ? file.name : "No file selected"}
+                  {file ? file.name : t.noFile}
                 </span>
               </label>
 
-              <div className="actions">
+              {status === "error" && errorMessage && (
+                <div className="status status--error" role="alert">
+                  {errorMessage}
+                </div>
+              )}
+              {status === "success" && (
+                <div className="status status--success">{t.success}</div>
+              )}
+
+              <div className="modal__actions">
                 <button
                   type="button"
                   className="secondary"
                   onClick={() => setStep("instructions")}
                 >
-                  Previous
+                  {t.previous}
                 </button>
                 <button
                   type="submit"
                   className="primary"
                   disabled={status === "uploading"}
                 >
-                  {status === "uploading" ? "Generating…" : "Generate PDF zip"}
+                  {status === "uploading" ? t.generating : t.generate}
                 </button>
               </div>
             </form>
-
-            {status === "error" && errorMessage && (
-              <div className="status status--error" role="alert">
-                {errorMessage}
-              </div>
-            )}
-            {status === "success" && (
-              <div className="status status--success">
-                Your report is ready. Download the zip file to view the PDFs.
-              </div>
-            )}
-
-            <div className="api-hint">
-              API endpoint: <span>{apiBaseUrl}/report/pdf-zip</span>
-            </div>
           </section>
         )}
 
         {step === "support" && (
           <section className="modal__section">
-            <h3>Your report is ready</h3>
+            <h3>{t.supportTitle}</h3>
             <div className="modal__copy">
-              <p className="muted">
-                Your PDF zip has been generated. If this tool saved you time,
-                you can support future improvements below.
-              </p>
+              <div className="status status--success">{t.success}</div>
+              <p className="muted">{t.supportDescription}</p>
               <a
                 className="support-link"
                 href="https://www.buymeacoffee.com/"
                 target="_blank"
                 rel="noreferrer"
               >
-                Buy me a coffee
+                {t.buyCoffee}
               </a>
             </div>
             <div className="modal__actions">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setStep("upload")}
-              >
-                Previous
-              </button>
               {downloadUrl && (
                 <button
                   className="primary"
@@ -301,13 +305,37 @@ function CoinmotionModal({
                     }
                   }}
                 >
-                  Download zip
+                  {t.download}
                 </button>
               )}
             </div>
           </section>
         )}
       </div>
+
+      {isPreviewOpen && (
+        <div className="lightbox" role="dialog" aria-modal="true">
+          <div
+            className="lightbox__backdrop"
+            onClick={() => setIsPreviewOpen(false)}
+          />
+          <div className="lightbox__content">
+            <button
+              type="button"
+              className="lightbox__close"
+              onClick={() => setIsPreviewOpen(false)}
+              aria-label={language === "fi" ? "Sulje" : "Close"}
+            >
+              ✕
+            </button>
+            <img
+              src="/src/assets/coinmotion_help.gif"
+              alt={t.videoTitle}
+              className="lightbox__media"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

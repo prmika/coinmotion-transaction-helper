@@ -83,6 +83,10 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
         "total_revenue": tx["eurAmount"],
     }
 
+    fee_eur = 0.0
+    if tx.get("feeCurrency") == "EUR":
+        fee_eur = float(tx.get("fee", 0.0))
+
     sold_time = _parse_time(tx["time"])
     cost_basis, assumed_cost, consumed_lots = fifo.calculate_cogs(
         sold_crypto["amount"],
@@ -103,7 +107,12 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
         lot_assumed_cost = lot_revenue * (0.4 if lot_held_long else 0.2)
         lot_cost_basis_used = max(lot_cost_basis, lot_assumed_cost)
         lot_method = "assumption" if lot_assumed_cost > lot_cost_basis else "fifo"
-        lot_profit_loss = lot_revenue - lot_cost_basis_used
+        lot_fee = 0.0
+        if fee_eur and sold_crypto["total_revenue"] > 0:
+            lot_fee = fee_eur * (lot_revenue / sold_crypto["total_revenue"])
+
+        lot_net_revenue = lot_revenue - lot_fee if lot_method == "fifo" else lot_revenue
+        lot_profit_loss = lot_net_revenue - lot_cost_basis_used
 
         cumulative_sold += lot_quantity
         remaining_after = remaining_before - cumulative_sold
@@ -111,10 +120,13 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
         split_tx = dict(tx)
         split_tx["cryptoAmount"] = lot_quantity
         split_tx["eurAmount"] = lot_revenue
+        if fee_eur and tx.get("feeCurrency") == "EUR":
+            split_tx["fee"] = lot_fee
         split_tx["costBasis"] = lot_cost_basis
         split_tx["assumedCost"] = lot_assumed_cost
         split_tx["costBasisUsed"] = lot_cost_basis_used
         split_tx["costBasisMethod"] = lot_method
+        split_tx["profitLoss"] = lot_profit_loss
         split_tx["remainingQuantity"] = remaining_after
 
         if lot_profit_loss > 0:

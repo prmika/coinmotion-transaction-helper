@@ -25,6 +25,8 @@ OUTPUT_HEADERS = [
     "Assumed Cost €",
     "Cost Basis Used",
     "Cost Basis Method",
+    "Selling fee €",
+    "Profit/Loss €",
 ]
 
 YEAR_HEADERS = [
@@ -108,13 +110,14 @@ def _build_pdf_bytes(currency, data):
         ["Assumed Cost €", "Hankintameno-olettama 20% tai 40% omistusajan mukaan"],
         ["Cost Basis Used", "Käytetty hankintameno"],
         ["Cost Basis Method", "Hankintamenomenetelmä"],
+        ["Profit/Loss €", "Myyntivoitto/-tappio"],
         ["fifo", "First In First Out -menetelmä (hankintameno)"],
         ["assumption", "Hankintameno-olettama"],
     ]
     elements.append(_make_table(dictionary_rows, col_widths=[100, 400]))
     elements.append(Spacer(1, 36))
 
-    elements.append(Paragraph("Yearly Summary", styles["Heading2"]))
+    elements.append(Paragraph("Yearly Summary *", styles["Heading2"]))
     year_rows = [YEAR_HEADERS]
     for year in sorted(data.get("years", {}).keys()):
         summary = data["years"][year]
@@ -128,9 +131,10 @@ def _build_pdf_bytes(currency, data):
             ]
         )
     elements.append(_make_table(year_rows, col_widths=_year_col_widths(doc.width)))
+    elements.append(Paragraph("* Luvuista on vähennetty mahdolliset osto- ja myyntikulut. / The figures have been reduced by possible purchase and sale fees.", disclaimer_style))
     elements.append(Spacer(1, 16))
 
-    elements.append(Paragraph("Transactions", styles["Heading2"]))
+    elements.append(Paragraph("Transactions **", styles["Heading2"]))
     elements.append(Spacer(1, 16))
 
     tx_rows = [[_header_cell(text, styles) for text in OUTPUT_HEADERS]]
@@ -150,6 +154,8 @@ def _build_pdf_bytes(currency, data):
                 _format_eur(item.get("assumedCost", "")),
                 _format_eur(item.get("costBasisUsed", "")),
                 item.get("costBasisMethod", ""),
+                _format_eur(item.get("fee", "")) if item["type"] == "sell" and item.get("costBasisMethod", "") == "fifo" else "",
+                _format_eur(item.get("profitLoss", "")),
             ]
         )
     elements.append(
@@ -159,6 +165,7 @@ def _build_pdf_bytes(currency, data):
             col_widths=_transaction_col_widths(doc.width),
         )
     )
+    elements.append(Paragraph("** Voitto/tappio on laskettu Amount € - Cost Basis Used - Selling fee €. / Profit/loss is calculated as Amount € - Cost Basis Used - Selling fee €.", disclaimer_style)) 
 
     elements.append(Spacer(1, 12))
     elements.append(Paragraph("Disclaimer", styles["Heading2"]))
@@ -251,8 +258,10 @@ def _transaction_col_widths(total_width):
         0.08,  # Remaining Quantity
         0.06,  # Cost Basis €
         0.07,  # Assumed Cost €
-        0.06,  # Cost Basis Used
-        0.07,  # Cost Basis Method
+        0.05,  # Cost Basis Used
+        0.06,  # Cost Basis Method
+        0.06,  # Selling fee €
+        0.05,  # Profit/Loss €
     ]
     return [total_width * f for f in fractions]
 
@@ -276,8 +285,9 @@ def _format_eur(value):
 
 def _format_remaining_quantity(value):
     try:
-        if abs(float(value)) <= 1e-12:
-            return 0.0
-        return round(float(value), 8)
+        amount = float(value)
+        if abs(amount) <= 1e-8:
+            return "0"
+        return f"{amount:.8f}"
     except (TypeError, ValueError):
         return value
