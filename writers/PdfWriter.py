@@ -44,12 +44,20 @@ def write_pdf_zip(objects, output_folder="./output/", zip_name="pdf_reports.zip"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
+    zip_bytes = build_pdf_zip_bytes(objects)
     zip_path = os.path.join(output_folder, zip_name)
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    with open(zip_path, "wb") as handle:
+        handle.write(zip_bytes)
+
+
+def build_pdf_zip_bytes(objects):
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for currency, data in objects.items():
             pdf_bytes = _build_pdf_bytes(currency, data)
             filename = f"{_sanitize_filename(currency)}.pdf"
             archive.writestr(filename, pdf_bytes)
+    return buffer.getvalue()
 
 
 def _build_pdf_bytes(currency, data):

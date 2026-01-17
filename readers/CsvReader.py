@@ -1,30 +1,43 @@
 import csv
+from io import StringIO
 from datetime import datetime
 
 def read_csv(file_path: str):
     transactions = []
     with open(file_path, mode='r', encoding='utf-8') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            try:
-                transactions.append({
-                    "fromCurrency": row["fromCurrency"].strip().upper(),
-                    "toCurrency": row["toCurrency"].strip().upper(),
-                    "type": row["type"],
-                    "eurAmount": float(row["eurAmount"]) if row["eurAmount"] else 0.0,
-                    "cryptoAmount": float(row["cryptoAmount"]) if row["cryptoAmount"] else 0.0,
-                    "rate": float(row["rate"]) if row["rate"] else 0.0,
-                    "fee": float(row["fee"]) if row["fee"] else 0.0,
-                    "feeCurrency": row["feeCurrency"].strip().upper(),
-                    "time": row["time"],
-                    "source": "Coinmotion Oy"
-                })
-            except (ValueError, KeyError) as e:
-                raise ValueError(f"Error parsing row {reader.line_num}: {e}")
+        transactions = _parse_csv_reader(csv.DictReader(file))
     if not transactions:
         print("No transactions found in the CSV file.")
         return []
     return create_objects_from_csv(transactions)
+
+
+def read_csv_stream(content: str):
+    transactions = _parse_csv_reader(csv.DictReader(StringIO(content)))
+    if not transactions:
+        return []
+    return create_objects_from_csv(transactions)
+
+
+def _parse_csv_reader(reader):
+    transactions = []
+    for row in reader:
+        try:
+            transactions.append({
+                "fromCurrency": row["fromCurrency"].strip().upper(),
+                "toCurrency": row["toCurrency"].strip().upper(),
+                "type": row["type"],
+                "eurAmount": float(row["eurAmount"]) if row["eurAmount"] else 0.0,
+                "cryptoAmount": float(row["cryptoAmount"]) if row["cryptoAmount"] else 0.0,
+                "rate": float(row["rate"]) if row["rate"] else 0.0,
+                "fee": float(row["fee"]) if row["fee"] else 0.0,
+                "feeCurrency": row["feeCurrency"].strip().upper(),
+                "time": row["time"],
+                "source": "Coinmotion Oy",
+            })
+        except (ValueError, KeyError) as e:
+            raise ValueError(f"Error parsing row {reader.line_num}: {e}")
+    return transactions
 
 def create_objects_from_csv(transactions):
     sells = []

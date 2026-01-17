@@ -57,3 +57,15 @@ Run the test suite with:
 ```powershell
 python -m pytest
 ```
+
+## API
+
+Start the API server:
+
+```powershell
+uvicorn api:app --reload
+```
+
+Upload a CSV file to receive `pdf_reports.zip`:
+
+- `POST /report/pdf-zip` (multipart form-data with `file`)
