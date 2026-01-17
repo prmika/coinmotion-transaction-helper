@@ -1,9 +1,11 @@
 import os
 from datetime import datetime
+from io import BytesIO
+import zipfile
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from config import REPORT_VERSION
@@ -12,13 +14,13 @@ from config import REPORT_VERSION
 OUTPUT_HEADERS = [
     "Time",
     "Type",
-    "Crypto Amount",
+    "Crypto\nAmount",
     "Rate",
     "Amount €",
     "Source",
-    "From Currency",
-    "To Currency",
-    "Remaining Quantity",
+    "From\nCurrency",
+    "To\nCurrency",
+    "Remaining\nQuantity",
     "Cost Basis €",
     "Assumed Cost €",
     "Cost Basis Used",
@@ -34,110 +36,163 @@ YEAR_HEADERS = [
 ]
 
 
-def write_pdf(objects):
+def write_pdf_zip(objects, output_folder="./output/", zip_name="pdf_reports.zip"):
     if not objects:
         print("No objects to write")
         return
 
-    output_folder = "./output/"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    for currency, data in objects.items():
-        filename = os.path.join(output_folder, f"{_sanitize_filename(currency)}.pdf")
-        doc = SimpleDocTemplate(
-            filename,
-            pagesize=landscape(A4),
-            leftMargin=20,
-            rightMargin=20,
-            topMargin=20,
-            bottomMargin=20,
+    zip_path = os.path.join(output_folder, zip_name)
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for currency, data in objects.items():
+            pdf_bytes = _build_pdf_bytes(currency, data)
+            filename = f"{_sanitize_filename(currency)}.pdf"
+            archive.writestr(filename, pdf_bytes)
+
+
+def _build_pdf_bytes(currency, data):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=20,
+        rightMargin=20,
+        topMargin=20,
+        bottomMargin=20,
+    )
+    styles = getSampleStyleSheet()
+    disclaimer_style = ParagraphStyle(
+        "Disclaimer",
+        parent=styles["Normal"],
+        fontSize=8,
+        leading=10,
+        textColor=colors.black,
+        spaceBefore=4,
+        spaceAfter=8,
+    )
+
+    elements = [Paragraph(f"Tax Report - {currency}", styles["Title"]), Spacer(1, 6)]
+    elements.append(Paragraph(f"Version {REPORT_VERSION}", disclaimer_style))
+    elements.append(Paragraph(f"Generated on {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}", disclaimer_style))
+    elements.append(Paragraph("Tämä raportti on automaattisesti muodostettu Coinmotionin toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella. / This report has been automatically generated based on transaction data provided by Coinmotion and information supplied by the user.", disclaimer_style))
+
+    elements.append(Paragraph("Dictionary", styles["Heading2"]))
+    dictionary_rows = [
+        ["Key", "Description"],
+        ["Year", "Vuosi"],
+        ["From Time", "Laskentajakso"],
+        ["Wins €", "Voitot yhteensä euroina"],
+        ["Losses €", "Tappiot yhteensä euroina"],
+        ["Total €", "Nettovoitto/-tappio euroina"],
+        ["Time", "Tapahtuma-aika"],
+        ["type", "Tapahtumatyyppi"],
+        ["buy", "Ostotapahtuma"],
+        ["sell", "Myyntitapahtuma"],
+        ["Crypto Amount", "Kryptovaluutan määrä"],
+        ["Amount €", "Euro määrä"],
+        ["Rate", "Kryptovaluutan kurssi euroissa"],
+        ["From Currency", "Mistä valuutasta"],
+        ["To Currency", "Mihin valuuttaan"],
+        ["Remaining Quantity", "Jäljellä oleva määrä"],
+        ["Cost Basis €", "Hankintameno"],
+        ["Assumed Cost €", "Hankintameno-olettama 20% tai 40% omistusajan mukaan"],
+        ["Cost Basis Used", "Käytetty hankintameno"],
+        ["Cost Basis Method", "Hankintamenomenetelmä"],
+        ["fifo", "First In First Out -menetelmä (hankintameno)"],
+        ["assumption", "Hankintameno-olettama"],
+    ]
+    elements.append(_make_table(dictionary_rows, col_widths=[100, 400]))
+    elements.append(Spacer(1, 36))
+
+    elements.append(Paragraph("Yearly Summary", styles["Heading2"]))
+    year_rows = [YEAR_HEADERS]
+    for year in sorted(data.get("years", {}).keys()):
+        summary = data["years"][year]
+        year_rows.append(
+            [
+                year,
+                summary.get("fromTime", ""),
+                _format_eur(summary.get("wins", 0)),
+                _format_eur(summary.get("losses", 0)),
+                _format_eur(summary.get("total", 0)),
+            ]
         )
-        styles = getSampleStyleSheet()
+    elements.append(_make_table(year_rows, col_widths=_year_col_widths(doc.width)))
+    elements.append(Spacer(1, 16))
 
-        elements = [Paragraph(f"Tax Report - {currency}", styles["Title"]), Spacer(1, 6)]
-        elements.append(Paragraph(f"Version {REPORT_VERSION}", styles["Normal"]))
-        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}", styles["Normal"]))
-        elements.append(Paragraph("Legend", styles["Heading2"]))
-        elements.append(Paragraph("This report provides a detailed summary of your cryptocurrency transactions, including yearly summaries and individual transaction details. Double-check the data for accuracy and consult a tax professional if needed.", styles["Normal"]))
-        elements.append(Paragraph("Tämä raportti tarjoaa yksityiskohtaisen yhteenvedon kryptovaluuttatapahtumistasi, mukaan lukien vuosittaiset yhteenvedot ja yksittäisten tapahtumien tiedot. Tarkista tietojen oikeellisuus ja ota tarvittaessa yhteyttä veroasiantuntijaan.", styles["Normal"]))
+    elements.append(Paragraph("Transactions", styles["Heading2"]))
+    elements.append(Spacer(1, 16))
 
-
-        elements.append(Paragraph("Dictionary", styles["Heading2"]))
-        dictionary_rows = [
-            ["Key", "Description"],
-            ["Year", "Vuosi"],
-            ["From Time", "Laskentajakso"],
-            ["Wins €", "Voitot yhteensä euroina"],
-            ["Losses €", "Tappiot yhteensä euroina"],
-            ["Total €", "Nettovoitto/-tappio euroina"],
-            ["Time", "Tapahtuma-aika"],
-            ["type", "Tapahtumatyyppi"],
-            ["buy", "Ostotapahtuma"],
-            ["sell", "Myyntitapahtuma"],
-            ["Crypto Amount", "Kryptovaluutan määrä"],
-            ["Amount €", "Euro määrä"],
-            ["Rate", "Kryptovaluutan kurssi euroissa"],
-            ["From Currency", "Mistä valuutasta"],
-            ["To Currency", "Mihin valuuttaan"],
-            ["Remaining Quantity", "Jäljellä oleva määrä"],
-            ["Cost Basis €", "Hankintameno"],
-            ["Assumed Cost €", "Hankintameno-olettama 20% tai 40% omistusajan mukaan"],
-            ["Cost Basis Used", "Käytetty hankintameno"],
-            ["Cost Basis Method", "Hankintamenomenetelmä"],
-            ["fifo", "First In First Out -menetelmä (hankintameno)"],
-            ["assumption", "Hankintameno-olettama"]
-        ]
-        elements.append(_make_table(dictionary_rows, col_widths=[100, 400]))
-        elements.append(Spacer(1, 36))
-
-        elements.append(Paragraph("Yearly Summary", styles["Heading2"]))
-        year_rows = [YEAR_HEADERS]
-        for year in sorted(data.get("years", {}).keys()):
-            summary = data["years"][year]
-            year_rows.append(
-                [
-                    year,
-                    summary.get("fromTime", ""),
-                    _format_eur(summary.get("wins", 0)),
-                    _format_eur(summary.get("losses", 0)),
-                    _format_eur(summary.get("total", 0)),
-                ]
-            )
-        elements.append(_make_table(year_rows, col_widths=_year_col_widths(doc.width)))
-        elements.append(Spacer(1, 16))
-
-        elements.append(Paragraph("Transactions", styles["Heading2"]))
-        elements.append(Spacer(1, 16))
-
-        tx_rows = [[_header_cell(text, styles) for text in OUTPUT_HEADERS]]
-        for item in data.get("transactions", []):
-            tx_rows.append(
-                [
-                    _format_time(item["time"]),
-                    item["type"],
-                        _format_crypto(item["cryptoAmount"]),
-                    item["rate"],
-                    _format_eur(item["eurAmount"]),
-                    item["source"],
-                    item["fromCurrency"],
-                    item["toCurrency"],
-                    _format_remaining_quantity(item.get("remainingQuantity", "")),
-                    _format_eur(item.get("costBasis", "")),
-                    _format_eur(item.get("assumedCost", "")),
-                    _format_eur(item.get("costBasisUsed", "")),
-                    item.get("costBasisMethod", ""),
-                ]
-            )
-        elements.append(
-            _make_table(
-                tx_rows,
-                repeat_header=True,
-                col_widths=_transaction_col_widths(doc.width),
-            )
+    tx_rows = [[_header_cell(text, styles) for text in OUTPUT_HEADERS]]
+    for item in data.get("transactions", []):
+        tx_rows.append(
+            [
+                _format_time(item["time"]),
+                item["type"],
+                _format_crypto(item["cryptoAmount"]),
+                item["rate"],
+                _format_eur(item["eurAmount"]),
+                item["source"],
+                item["fromCurrency"],
+                item["toCurrency"],
+                _format_remaining_quantity(item.get("remainingQuantity", "")),
+                _format_eur(item.get("costBasis", "")),
+                _format_eur(item.get("assumedCost", "")),
+                _format_eur(item.get("costBasisUsed", "")),
+                item.get("costBasisMethod", ""),
+            ]
         )
+    elements.append(
+        _make_table(
+            tx_rows,
+            repeat_header=True,
+            col_widths=_transaction_col_widths(doc.width),
+        )
+    )
 
-        doc.build(elements)
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("Disclaimer", styles["Heading2"]))
+    elements.append(
+        Paragraph(
+            """Tämä raportti on automaattisesti muodostettu Coinmotionin toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella.<br/><br/>
+            Raportti on suuntaa-antava eikä ole veroneuvontaa. Palvelu ei takaa raportin tietojen täydellisyyttä, oikeellisuutta tai soveltuvuutta käyttäjän yksittäiseen verotustilanteeseen. Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista luvuista.<br/><br/>
+            Raportti ei välttämättä huomioi oikein tai kattavasti kaikkia seuraavia tapahtumia:<br/>
+            • lompakkojen välisiä siirtoja<br/>
+            • ulkopuolisista pörsseistä tai palveluista tehtyjä transaktioita<br/>
+            • staking-, lending- tai muita tuottotapahtumia<br/>
+            • DeFi-tapahtumia<br/>
+            • airdroppeja ja hard fork -tapahtumia<br/>
+            • NFT-kauppaa<br/><br/>
+            Raportissa esitetyt laskelmat (esim. todellinen hankintahinta tai hankintameno-olettama) ovat laskennallisia. Hankintameno-olettaman käyttö ja lopullinen verotuksellinen valinta on aina käyttäjän vastuulla.<br/><br/>
+            Palvelun tarjoaja ei vastaa mahdollisista veroseuraamuksista, veronkorotuksista tai muista vahingoista, jotka aiheutuvat raportin käytöstä.<br/><br/>
+            Ajantasaiset ja sitovat ohjeet löytyvät Verohallinnon verkkosivuilta. Epäselvissä tilanteissa suositellaan ottamaan yhteyttä veroasiantuntijaan.""",
+            disclaimer_style,
+        )
+    )
+    elements.append(Spacer(1, 8))
+    elements.append(
+        Paragraph(
+            """This report has been automatically generated based on transaction data provided by Coinmotion and information supplied by the user.<br/><br/>
+            This report is for informational purposes only and does not constitute tax advice. The service does not guarantee the completeness, accuracy, or suitability of the report for the user’s individual tax situation. The user is solely responsible for verifying the correctness of the information and the figures reported to the tax authorities.<br/><br/>
+            The report may not fully or correctly account for the following events:<br/>
+            • transfers between wallets<br/>
+            • transactions from external exchanges or services<br/>
+            • staking, lending, or yield-related income<br/>
+            • DeFi transactions<br/>
+            • airdrops and hard forks<br/>
+            • NFT transactions<br/><br/>
+            Any calculations presented in the report (e.g. actual acquisition cost or deemed acquisition cost) are estimates. The choice and applicability of the deemed acquisition cost method is always the responsibility of the user.<br/><br/>
+            The service provider shall not be held liable for any tax consequences, penalties, or damages arising from the use of this report.<br/><br/>
+            For official and binding guidance, please refer to the Finnish Tax Administration or consult a qualified tax professional.""",
+            disclaimer_style,
+        )
+    )
+
+    
+    doc.build(elements)
+    return buffer.getvalue()
 
 
 def _make_table(rows, repeat_header=False, col_widths=None):
