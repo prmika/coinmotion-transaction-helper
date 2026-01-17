@@ -128,3 +128,59 @@ def test_create_tax_report_handles_eur_to_crypto_buy():
 
     assert "XRP" in results
     assert results["XRP"]["transactions"][0]["cryptoAmount"] == 1.0
+
+
+def test_split_sell_uses_assumption_then_fifo():
+    objects = [
+        {
+            "time": "2010-01-01T10:00:00+02:00",
+            "type": "buy",
+            "cryptoAmount": 1.0,
+            "rate": 1.0,
+            "eurAmount": 1.0,
+            "source": "Coinmotion",
+            "fromCurrency": "EUR",
+            "toCurrency": "BTC",
+            "fee": 0.0,
+            "feeCurrency": "EUR",
+        },
+        {
+            "time": "2022-01-01T10:00:00+02:00",
+            "type": "buy",
+            "cryptoAmount": 1.0,
+            "rate": 4.0,
+            "eurAmount": 4.0,
+            "source": "Coinmotion",
+            "fromCurrency": "EUR",
+            "toCurrency": "BTC",
+            "fee": 0.0,
+            "feeCurrency": "EUR",
+        },
+        {
+            "time": "2024-12-01T10:00:00+02:00",
+            "type": "sell",
+            "cryptoAmount": 2.0,
+            "rate": 10.0,
+            "eurAmount": 20.0,
+            "source": "Coinmotion",
+            "fromCurrency": "BTC",
+            "toCurrency": "EUR",
+            "fee": 0.0,
+            "feeCurrency": "EUR",
+        },
+    ]
+
+    results = create_tax_report(objects)
+
+    sell_txs = [tx for tx in results["BTC"]["transactions"] if tx["type"] == "sell"]
+    sell_tx_1, sell_tx_2 = sell_txs
+
+    assert sell_tx_1["cryptoAmount"] == 1.0
+    assert sell_tx_1["costBasisMethod"] == "assumption"
+    assert sell_tx_1["costBasisUsed"] == 4.0
+    assert sell_tx_1["time"] == "2024-12-01T10:00:00+02:00"
+
+    assert sell_tx_2["cryptoAmount"] == 1.0
+    assert sell_tx_2["costBasisMethod"] == "fifo"
+    assert sell_tx_2["costBasisUsed"] == 4.0
+    assert sell_tx_2["time"] == "2024-12-01T10:00:00+02:00"

@@ -37,6 +37,7 @@ class FIFO:
 
         cogs = 0.0
         assumed_cost = 0.0
+        consumed_lots = []
         price_per_unit = total_revenue / quantity_sold if quantity_sold else 0.0
         remaining_to_sell = quantity_sold
 
@@ -55,14 +56,24 @@ class FIFO:
             if lot.quantity <= remaining_to_sell + EPSILON:
                 cogs += lot.quantity * lot.price
                 assumed_cost += proceeds_portion * assumed_rate
+                consumed_lots.append({
+                    "quantity": lot.quantity,
+                    "price": lot.price,
+                    "time": lot.time,
+                })
                 remaining_to_sell -= lot.quantity
             else:
                 cogs += remaining_to_sell * lot.price
                 assumed_cost += proceeds_portion * assumed_rate
+                consumed_lots.append({
+                    "quantity": remaining_to_sell,
+                    "price": lot.price,
+                    "time": lot.time,
+                })
                 self.queue.appendleft(Lot(lot.quantity - remaining_to_sell, lot.price, lot.time))
                 remaining_to_sell = 0.0
 
-        return cogs, assumed_cost
+        return cogs, assumed_cost, consumed_lots
 
     def remaining_quantity(self):
         return sum(lot.quantity for lot in self.queue)

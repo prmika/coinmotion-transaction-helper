@@ -16,14 +16,20 @@ def create_tax_report(objects):
 
     for currency, data in results.items():
         fifo = fifo_by_currency.setdefault(currency, FIFO())
+        processed_transactions = []
         for tx in data["transactions"]:
             tx_year = tx["time"].split("-")[0]
             _ensure_year_entry(data, tx_year)
 
             if tx["fromCurrency"] == "EUR":
                 _handle_buy_transaction(fifo, tx)
+                processed_transactions.append(tx)
             elif tx["toCurrency"] == "EUR":
-                _handle_sell_transaction(fifo, data, tx, tx_year)
+                processed_transactions.extend(_handle_sell_transaction(fifo, data, tx, tx_year))
+            else:
+                processed_transactions.append(tx)
+
+        data["transactions"] = processed_transactions
 
     return results
 
@@ -70,7 +76,7 @@ def _handle_buy_transaction(fifo, tx):
 
 def _handle_sell_transaction(fifo, data, tx, tx_year):
     if tx["cryptoAmount"] <= 0:
-        return
+        return []
 
     sold_crypto = {
         "amount": tx["cryptoAmount"],
@@ -78,28 +84,49 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
     }
 
     sold_time = _parse_time(tx["time"])
-    cost_basis, assumed_cost = fifo.calculate_cogs(
+    cost_basis, assumed_cost, consumed_lots = fifo.calculate_cogs(
         sold_crypto["amount"],
         sold_time,
         sold_crypto["total_revenue"],
     )
-    cost_basis_used = max(cost_basis, assumed_cost)
-    cost_basis_method = "assumption" if assumed_cost > cost_basis else "fifo"
-    profit_loss = sold_crypto["total_revenue"] - cost_basis_used
 
-    tx["costBasis"] = cost_basis
-    tx["assumedCost"] = assumed_cost
-    tx["costBasisUsed"] = cost_basis_used
-    tx["costBasisMethod"] = cost_basis_method
+    price_per_unit = sold_crypto["total_revenue"] / sold_crypto["amount"]
+    remaining_before = fifo.remaining_quantity() + sold_crypto["amount"]
+    cumulative_sold = 0.0
+    split_transactions = []
 
-    tx["remainingQuantity"] = fifo.remaining_quantity()
+    for lot in consumed_lots:
+        lot_quantity = lot["quantity"]
+        lot_revenue = lot_quantity * price_per_unit
+        lot_cost_basis = lot_quantity * lot["price"]
+        lot_held_long = (sold_time - lot["time"]).days >= 3650
+        lot_assumed_cost = lot_revenue * (0.4 if lot_held_long else 0.2)
+        lot_cost_basis_used = max(lot_cost_basis, lot_assumed_cost)
+        lot_method = "assumption" if lot_assumed_cost > lot_cost_basis else "fifo"
+        lot_profit_loss = lot_revenue - lot_cost_basis_used
 
-    if profit_loss > 0:
-        data["years"][tx_year]["wins"] += profit_loss
-    else:
-        data["years"][tx_year]["losses"] += abs(profit_loss)
+        cumulative_sold += lot_quantity
+        remaining_after = remaining_before - cumulative_sold
 
-    data["years"][tx_year]["total"] += round(profit_loss, 2)
+        split_tx = dict(tx)
+        split_tx["cryptoAmount"] = lot_quantity
+        split_tx["eurAmount"] = lot_revenue
+        split_tx["costBasis"] = lot_cost_basis
+        split_tx["assumedCost"] = lot_assumed_cost
+        split_tx["costBasisUsed"] = lot_cost_basis_used
+        split_tx["costBasisMethod"] = lot_method
+        split_tx["remainingQuantity"] = remaining_after
+
+        if lot_profit_loss > 0:
+            data["years"][tx_year]["wins"] += lot_profit_loss
+        else:
+            data["years"][tx_year]["losses"] += abs(lot_profit_loss)
+
+        data["years"][tx_year]["total"] += round(lot_profit_loss, 2)
+
+        split_transactions.append(split_tx)
+
+    return split_transactions
 
 
 def _parse_time(value):
