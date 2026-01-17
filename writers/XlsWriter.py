@@ -3,6 +3,8 @@ import os
 import re
 from datetime import datetime
 
+from config import REPORT_VERSION
+
 OUTPUT_HEADERS = [
     "Time",
     "Type",
@@ -45,6 +47,7 @@ def write_xls(objects):
             ws = wb.active
             ws.title = currency
 
+            _write_report_header(ws)
             _write_year_summary(ws, data.get("years", {}))
 
             ws.append(OUTPUT_HEADERS)
@@ -123,4 +126,9 @@ def _write_year_summary(ws, years):
             ]
         )
 
+    ws.append([])
+
+
+def _write_report_header(ws):
+    ws.append([f"Report Version {REPORT_VERSION}"])
     ws.append([])

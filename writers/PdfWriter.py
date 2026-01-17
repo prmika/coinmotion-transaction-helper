@@ -6,6 +6,8 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
+from config import REPORT_VERSION
+
 
 OUTPUT_HEADERS = [
     "Time",
@@ -53,7 +55,13 @@ def write_pdf(objects):
         )
         styles = getSampleStyleSheet()
 
-        elements = [Paragraph(f"Tax Report - {currency}", styles["Title"]), Spacer(1, 22)]
+        elements = [Paragraph(f"Tax Report - {currency}", styles["Title"]), Spacer(1, 6)]
+        elements.append(Paragraph(f"Version {REPORT_VERSION}", styles["Normal"]))
+        elements.append(Paragraph(f"Generated on {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}", styles["Normal"]))
+        elements.append(Paragraph("Legend", styles["Heading2"]))
+        elements.append(Paragraph("This report provides a detailed summary of your cryptocurrency transactions, including yearly summaries and individual transaction details. Double-check the data for accuracy and consult a tax professional if needed.", styles["Normal"]))
+        elements.append(Paragraph("Tämä raportti tarjoaa yksityiskohtaisen yhteenvedon kryptovaluuttatapahtumistasi, mukaan lukien vuosittaiset yhteenvedot ja yksittäisten tapahtumien tiedot. Tarkista tietojen oikeellisuus ja ota tarvittaessa yhteyttä veroasiantuntijaan.", styles["Normal"]))
+
 
         elements.append(Paragraph("Dictionary", styles["Heading2"]))
         dictionary_rows = [
