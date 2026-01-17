@@ -283,13 +283,12 @@ function CoinmotionModal({
             <div className="modal__copy">
               <div className="status status--success">{t.success}</div>
               <p className="muted">{t.supportDescription}</p>
-              <a
-                className="support-link"
-                href="https://www.buymeacoffee.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t.buyCoffee}
+              <a href="https://www.buymeacoffee.com/prmika" target="_blank">
+                <img
+                  src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+                  alt="Buy Me A Coffee"
+                  style={{ height: "60px", width: "217px" }}
+                />
               </a>
             </div>
             <div className="modal__actions">
