@@ -38,7 +38,7 @@ def write_xls(objects):
         print("No objects to write")
         return
 
-    output_folder = "./output/"
+    output_folder = "../data/output/"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

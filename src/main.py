@@ -5,7 +5,8 @@ from writers.PdfWriter import write_pdf_zip
 from processor import create_tax_report
 
 if __name__ == "__main__":
-    input_folder = './input/'
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    input_folder = os.path.join(current_dir, '..', 'data', 'input')
     file_path = None
 
     csv_files = [file for file in os.listdir(input_folder) if file.endswith('.csv')]

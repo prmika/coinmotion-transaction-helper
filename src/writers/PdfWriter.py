@@ -38,7 +38,7 @@ YEAR_HEADERS = [
 ]
 
 
-def write_pdf_zip(objects, output_folder="./output/", zip_name="pdf_reports.zip"):
+def write_pdf_zip(objects, output_folder="../data/output/", zip_name="pdf_reports.zip"):
     if not objects:
         print("No objects to write")
         return
