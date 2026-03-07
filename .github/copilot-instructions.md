@@ -77,6 +77,10 @@ Transactions always have `fromCurrency` and `toCurrency`. EUR is the base curren
 - Raises `ValueError` if inventory insufficient for sell transaction
 - Returns `consumed_lots` list showing which purchase lots were used
 
+### UI and Translations Pattern
+
+- **Mandatory Translations**: Every time new text is added or modified in the frontend UI, it must NOT be hardcoded. Translations MUST be added to `frontend/src/i18n.ts` (for both `en` and `fi`) and referenced in the component using the `translations` object.
+
 ### Error Handling Patterns
 
 - `src/main.py` enforces exactly one CSV file in `./data/input/` folder

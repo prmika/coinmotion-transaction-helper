@@ -35,7 +35,8 @@ YEAR_HEADERS = [
 
 def write_xls(objects):
     if not objects:
-        print("No objects to write")
+        import logging
+        logging.getLogger(__name__).warning("No objects to write")
         return
 
     output_folder = "../data/output/"
@@ -90,6 +91,8 @@ def _sanitize_filename(name):
 
 def _format_time(value):
     try:
+        if isinstance(value, datetime):
+            return value.strftime("%d.%m.%Y %H:%M:%S")
         parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S%z")
         return parsed.strftime("%d.%m.%Y %H:%M:%S")
     except (TypeError, ValueError):

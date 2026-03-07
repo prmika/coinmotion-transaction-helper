@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import "./App.css";
-import CoinmotionModal from "./components/CoinmotionModal";
+import BrokerModal from "./components/BrokerModal";
 import CommentsAndQuestions from "./components/CommentsAndQuestions";
 import { translations, type Language } from "./i18n";
+import { BROKERS, type BrokerId } from "./config/brokerConfigs";
 
 function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeBrokerId, setActiveBrokerId] = useState<BrokerId | null>(null);
   const [language, setLanguage] = useState<Language>("fi");
 
   const apiBaseUrl = useMemo(() => {
@@ -15,12 +16,12 @@ function App() {
     );
   }, []);
 
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
+  const handleOpenModal = (brokerId: BrokerId) => {
+    setActiveBrokerId(brokerId);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
+    setActiveBrokerId(null);
   };
 
   const t = translations[language];
@@ -84,7 +85,7 @@ function App() {
             <button
               className="broker-card"
               type="button"
-              onClick={handleOpenModal}
+              onClick={() => handleOpenModal("coinmotion")}
             >
               <div className="broker-card__logo">
                 <img src="/coinmotion_logo.png" alt="Coinmotion logo" />
@@ -93,6 +94,22 @@ function App() {
                 <div>
                   <h3>Coinmotion</h3>
                   <p className="muted">{t.app.coinmotionDescription}</p>
+                </div>
+                <span className="badge badge--active">{t.app.available}</span>
+              </div>
+            </button>
+            <button
+              className="broker-card"
+              type="button"
+              onClick={() => handleOpenModal("binance")}
+            >
+              <div className="broker-card__logo">
+                <img src="/binance_logo.png" alt="Binance logo" />
+              </div>
+              <div className="broker-card__body">
+                <div>
+                  <h3>Binance</h3>
+                  <p className="muted">{t.app.binanceDescription}</p>
                 </div>
                 <span className="badge badge--active">{t.app.available}</span>
               </div>
@@ -122,11 +139,12 @@ function App() {
         <CommentsAndQuestions copy={t.comments} />
       </main>
 
-      <CoinmotionModal
-        isOpen={isModalOpen}
+      <BrokerModal
+        isOpen={activeBrokerId !== null}
         apiBaseUrl={apiBaseUrl}
         onClose={handleCloseModal}
         language={language}
+        brokerConfig={activeBrokerId ? BROKERS[activeBrokerId] : null}
       />
     </div>
   );

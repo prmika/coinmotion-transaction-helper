@@ -20,7 +20,8 @@ export const translations = {
       brokersTitle: "Tuetut välittäjät",
       brokersDescription:
         "Lisää integraatioita on tulossa. Valitse välittäjä aloittaaksesi.",
-      coinmotionDescription: "",
+      coinmotionDescription: "CSV-tiedoston tuonti",
+      binanceDescription: "CSV-tiedoston tuonti",
       available: "Saatavilla",
       moreBrokers: "Lisää välittäjiä tulossa",
       comingSoon: "Ehdota välittäjää",
@@ -48,26 +49,8 @@ export const translations = {
       latestTitle: "Uusimmat vastaukset",
       empty: "Ei kysymyksiä vielä. Ole ensimmäinen!",
     },
-    modal: {
-      eyebrow: "Coinmotion",
+    brokerModal: {
       title: "Luo luovutusvoittoraportti",
-      disclaimerTitle: "Vastuuvapauslauseke",
-      disclaimerParagraphs: [
-        "Tämä palvelu tuottaa automaattisesti laskennallisen raportin Coinmotionin transaktiotietojen perusteella.",
-        "Raportti on suuntaa-antava eikä ole veroneuvontaa.",
-        "Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista tiedoista.",
-        "Palvelu ei vastaa mahdollisista veroseuraamuksista tai virheistä, jotka aiheutuvat raportin käytöstä.",
-      ],
-      disclaimerAcknowledge:
-        "Ymmärrän, että raportti on suuntaa-antava eikä korvaa virallista veroneuvontaa.",
-      instructionsTitle: "Miten saan Tapahtumaraportin CSV-muodossa",
-      instructionsSteps: [
-        "Avaa Coinmotion ja siirry raportointiin.",
-        "Tapahtumaraportit kohdassa klikkaa 'Lataa CSV tiedosto'.",
-        "Tiedosto tallentuu tietokoneellesi ja voit ladata sen tänne.",
-      ],
-      videoTitle: "Video-ohje",
-      videoDescription: "Lisää tähän lyhyt opastusvideo.",
       uploadTitle: "Lataa CSV",
       uploadDescription:
         "Palvelu palauttaa zip-paketin, jossa on PDF-raportit valuutoittain.",
@@ -76,11 +59,15 @@ export const translations = {
       chooseFile: "Valitse tiedosto",
       noFile: "Ei tiedostoa valittuna",
       generate: "Luo luovutusvoittolaskelma",
-      generating: "Luodaan…",
+      generating: "Luodaan⬦",
       apiEndpoint: "API-osoite",
       supportTitle: "Raportti on valmis",
       supportDescription:
         "Luovutusvoittolaskelma on luotu. Jos tämä säästi aikaa, voit halutessasi tukea jatkokehitystä.",
+      reportOverview: "Raportin yhteenveto:",
+      transactionsProcessed: "Käsitellyt myyntitapahtumat:",
+      totalSalesVolume: "Myyntivolyymi yhteensä:",
+      totalProfitLoss: "Voitto/tappio yhteensä:",
       buyCoffee: "Buy me a coffee",
       download: "Lataa zip",
       previous: "Edellinen",
@@ -90,8 +77,47 @@ export const translations = {
         fileRequired: "Valitse CSV-tiedosto ensin.",
         yearFormat: "Vuoden tulee olla muodossa VVVV.",
         uploadFailed: "Lataus epäonnistui.",
+        downloadFailed: "Lataus epäonnistui.",
+        downloadExpired:
+          "Lataus epäonnistui. Raportti on saattanut vanhentua. Luo uusi raportti.",
       },
       enlargeVideo: "Klikkaa suurentaaksesi",
+      close: "Sulje",
+    },
+    brokers: {
+      coinmotion: {
+        name: "Coinmotion",
+        videoTitle: "Video-ohje",
+        videoDescription: "Lisää tähän lyhyt opastusvideo.",
+        instructionsTitle: "Miten saan Tapahtumaraportin CSV-muodossa",
+        instructionsSteps: [
+          "Avaa Coinmotion ja siirry raportointiin.",
+          "Tapahtumaraportit kohdassa klikkaa 'Lataa CSV tiedosto'.",
+          "Tiedosto tallentuu tietokoneellesi ja voit ladata sen tänne.",
+        ],
+        disclaimerTitle: "Vastuuvapauslauseke",
+        disclaimerParagraphs: [
+          "Tämä palvelu tuottaa automaattisesti laskennallisen raportin Coinmotionin transaktiotietojen perusteella.",
+          "Raportti on suuntaa-antava eikä ole veroneuvontaa.",
+          "Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista tiedoista.",
+          "Palvelu ei vastaa mahdollisista veroseuraamuksista tai virheistä, jotka aiheutuvat raportin käytöstä.",
+        ],
+        disclaimerAcknowledge:
+          "Ymmärrän, että raportti on suuntaa-antava eikä korvaa virallista veroneuvontaa.",
+      },
+      binance: {
+        name: "Binance",
+        videoTitle: "Video-ohje",
+        videoDescription: "Lisää tähän lyhyt opastusvideo.",
+        instructionsTitle: "Tulossa...",
+        instructionsSteps: [
+          "Tulossa..."
+        ],
+        disclaimerTitle: "Tulossa...",
+        disclaimerParagraphs: [
+        ],
+        disclaimerAcknowledge: "",
+      },
     },
   },
   en: {
@@ -114,6 +140,7 @@ export const translations = {
       brokersDescription:
         "More integrations are planned. Select Coinmotion to get started.",
       coinmotionDescription: "CSV statement import",
+      binanceDescription: "CSV statement import",
       available: "Available",
       moreBrokers: "More brokers",
       comingSoon: "Coming soon",
@@ -142,26 +169,8 @@ export const translations = {
       latestTitle: "Latest answers",
       empty: "No questions yet. Be the first to ask!",
     },
-    modal: {
-      eyebrow: "Coinmotion",
+    brokerModal: {
       title: "Generate your tax report",
-      disclaimerTitle: "Disclaimer",
-      disclaimerParagraphs: [
-        "This service generates an automated, calculated report based on transaction data from Coinmotion.",
-        "The report is for informational purposes only and does not constitute tax advice.",
-        "The user is solely responsible for verifying the accuracy of the data and the information submitted to tax authorities.",
-        "The service provider is not responsible for any tax consequences or errors resulting from the use of this report.",
-      ],
-      disclaimerAcknowledge:
-        "I understand that this report is informational only and does not replace official tax advice.",
-      instructionsTitle: "How to export your CSV",
-      instructionsSteps: [
-        "Open Coinmotion and navigate to transactions.",
-        "Choose the CSV export for the full date range.",
-        "Save the CSV file to your computer.",
-      ],
-      videoTitle: "Video guide",
-      videoDescription: "Add a short walkthrough clip here.",
       uploadTitle: "Upload CSV",
       uploadDescription:
         "We will return a zip file containing one PDF report per currency.",
@@ -170,11 +179,15 @@ export const translations = {
       chooseFile: "Choose file",
       noFile: "No file selected",
       generate: "Generate PDF zip",
-      generating: "Generating…",
+      generating: "Generating⬦",
       apiEndpoint: "API endpoint",
       supportTitle: "Your report is ready",
       supportDescription:
         "Your PDF zip has been generated. If this tool saved you time, you can support future improvements below.",
+      reportOverview: "Report Overview:",
+      transactionsProcessed: "Transactions processed:",
+      totalSalesVolume: "Total sales volume:",
+      totalProfitLoss: "Total profit/loss:",
       buyCoffee: "Buy me a coffee",
       download: "Download zip",
       previous: "Previous",
@@ -184,8 +197,34 @@ export const translations = {
         fileRequired: "Select a CSV file first.",
         yearFormat: "Year must be in YYYY format.",
         uploadFailed: "Upload failed.",
+        downloadFailed: "Download failed.",
+        downloadExpired:
+          "Download failed. The report might have expired. Please generate it again.",
       },
       enlargeVideo: "Click to enlarge",
+      close: "Close",
+    },
+    brokers: {
+      coinmotion: {
+        name: "Coinmotion",
+        videoTitle: "Video guide",
+        videoDescription: "Add a short walkthrough clip here.",
+        instructionsTitle: "How to export your CSV",
+        instructionsSteps: [
+          "Open Coinmotion and navigate to transactions.",
+          "Choose the CSV export for the full date range.",
+          "Save the CSV file to your computer.",
+        ],
+        disclaimerTitle: "Disclaimer",
+        disclaimerParagraphs: [
+          "This service generates an automated, calculated report based on transaction data from Coinmotion.",
+          "The report is for informational purposes only and does not constitute tax advice.",
+          "The user is solely responsible for verifying the accuracy of the data and the information submitted to tax authorities.",
+          "The service provider is not responsible for any tax consequences or errors resulting from the use of this report.",
+        ],
+        disclaimerAcknowledge:
+          "I understand that this report is informational only and does not replace official tax advice.",
+      },
     },
   },
 } as const;

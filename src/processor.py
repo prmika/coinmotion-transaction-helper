@@ -1,15 +1,16 @@
-from datetime import datetime
+from typing import Any, Dict, List
+from collections import defaultdict
 
 from helpers.fifo import FIFO
 
 
-def create_tax_report(objects):
+def create_tax_report(objects: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Create a tax report from the given objects.
     This function processes the transactions and returns a structured report.
     """
     if not objects:
-        return []
+        return {}
 
     results = _group_transactions_by_currency(objects)
     fifo_by_currency = {}
@@ -18,7 +19,7 @@ def create_tax_report(objects):
         fifo = fifo_by_currency.setdefault(currency, FIFO())
         processed_transactions = []
         for tx in data["transactions"]:
-            tx_year = tx["time"].split("-")[0]
+            tx_year = str(tx["time"].year)
             _ensure_year_entry(data, tx_year)
 
             if tx["fromCurrency"] == "EUR":
@@ -34,21 +35,16 @@ def create_tax_report(objects):
     return results
 
 
-def _group_transactions_by_currency(objects):
-    results = {}
+def _group_transactions_by_currency(objects: List[Dict[str, Any]]) -> Dict[str, Any]:
+    results: Dict[str, Any] = defaultdict(lambda: {"years": {}, "transactions": []})
 
     for obj in objects:
         to_currency = obj["toCurrency"]
         if to_currency != "EUR":
-            results.setdefault(to_currency, {"years": {}, "transactions": []})
             results[to_currency]["transactions"].append(obj)
 
         from_currency = obj["fromCurrency"]
         if from_currency != "EUR":
-            if from_currency not in results:
-                raise ValueError(
-                    f"Currency {from_currency} not found in results, but it should be initialized."
-                )
             results[from_currency]["transactions"].append(obj)
 
     return results
@@ -70,7 +66,7 @@ def _handle_buy_transaction(fifo, tx):
     fifo.add_purchase(
         tx["cryptoAmount"],
         (tx["eurAmount"] / tx["cryptoAmount"]),
-        _parse_time(tx["time"]),
+        tx["time"],
     )
 
 
@@ -87,7 +83,7 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
     if tx.get("feeCurrency") == "EUR":
         fee_eur = float(tx.get("fee", 0.0))
 
-    sold_time = _parse_time(tx["time"])
+    sold_time = tx["time"]
     cost_basis, assumed_cost, consumed_lots = fifo.calculate_cogs(
         sold_crypto["amount"],
         sold_time,
@@ -139,7 +135,3 @@ def _handle_sell_transaction(fifo, data, tx, tx_year):
         split_transactions.append(split_tx)
 
     return split_transactions
-
-
-def _parse_time(value):
-    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S%z")

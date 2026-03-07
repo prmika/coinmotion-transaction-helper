@@ -1,13 +1,16 @@
 import csv
+import logging
 from io import StringIO
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 def read_csv(file_path: str):
     transactions = []
     with open(file_path, mode='r', encoding='utf-8') as file:
         transactions = _parse_csv_reader(csv.DictReader(file))
     if not transactions:
-        print("No transactions found in the CSV file.")
+        logger.warning("No transactions found in the CSV file.")
         return []
     return create_objects_from_csv(transactions)
 
@@ -32,7 +35,7 @@ def _parse_csv_reader(reader):
                 "rate": float(row["rate"]) if row["rate"] else 0.0,
                 "fee": float(row["fee"]) if row["fee"] else 0.0,
                 "feeCurrency": row["feeCurrency"].strip().upper(),
-                "time": row["time"],
+                "time": datetime.strptime(row["time"], "%Y-%m-%dT%H:%M:%S%z"),
                 "source": "Coinmotion Oy",
             })
         except (ValueError, KeyError) as e:
@@ -53,7 +56,7 @@ def create_objects_from_csv(transactions):
             continue
 
         if type_ == 'account_transfer_in':
-            transfers.append(handleAccount_transfer_in(transaction))
+            transfers.append(handle_account_transfer_in(transaction))
             continue
 
         if from_currency == 'EUR' and to_currency != 'EUR':
@@ -69,7 +72,7 @@ def create_objects_from_csv(transactions):
 
     return sort_by_date(objects)
 
-def handleAccount_transfer_in(transaction):
+def handle_account_transfer_in(transaction):
     # Process account_transfer_in transactions
     # For now we assume that account transfer is buy
     return {
@@ -91,6 +94,6 @@ def sort_by_date(rows):
         if len(rows) == 0:
             return rows
         else:
-            return sorted(rows, key=lambda row: datetime.strptime(row['time'], "%Y-%m-%dT%H:%M:%S%z"))
+            return sorted(rows, key=lambda row: row['time'])
     except Exception as e:
-        print(f"Error sorting rows by date: {e}")
+        logger.error(f"Error sorting rows by date: {e}")

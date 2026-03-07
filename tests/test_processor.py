@@ -1,4 +1,12 @@
+import pytest
 from processor import create_tax_report
+from datetime import datetime
+
+def _prepare_objects(objects):
+    for obj in objects:
+        if isinstance(obj["time"], str):
+            obj["time"] = datetime.strptime(obj["time"], "%Y-%m-%dT%H:%M:%S%z")
+    return objects
 
 
 def test_create_tax_report_fifo_per_currency():
@@ -53,7 +61,7 @@ def test_create_tax_report_fifo_per_currency():
         },
     ]
 
-    results = create_tax_report(objects)
+    results = create_tax_report(_prepare_objects(objects))
 
     btc_2024 = results["BTC"]["years"]["2024"]
     eth_2024 = results["ETH"]["years"]["2024"]
@@ -103,7 +111,7 @@ def test_create_tax_report_allows_small_rounding_in_fifo():
         },
     ]
 
-    results = create_tax_report(objects)
+    results = create_tax_report(_prepare_objects(objects))
 
     assert "XRP" in results
 
@@ -124,7 +132,7 @@ def test_create_tax_report_handles_eur_to_crypto_buy():
         }
     ]
 
-    results = create_tax_report(objects)
+    results = create_tax_report(_prepare_objects(objects))
 
     assert "XRP" in results
     assert results["XRP"]["transactions"][0]["cryptoAmount"] == 1.0
@@ -170,7 +178,7 @@ def test_split_sell_uses_assumption_then_fifo():
         },
     ]
 
-    results = create_tax_report(objects)
+    results = create_tax_report(_prepare_objects(objects))
 
     sell_txs = [tx for tx in results["BTC"]["transactions"] if tx["type"] == "sell"]
     sell_tx_1, sell_tx_2 = sell_txs
@@ -178,9 +186,9 @@ def test_split_sell_uses_assumption_then_fifo():
     assert sell_tx_1["cryptoAmount"] == 1.0
     assert sell_tx_1["costBasisMethod"] == "assumption"
     assert sell_tx_1["costBasisUsed"] == 4.0
-    assert sell_tx_1["time"] == "2024-12-01T10:00:00+02:00"
+    assert sell_tx_1["time"].strftime("%Y-%m-%dT%H:%M:%S%z") == "2024-12-01T10:00:00+0200"
 
     assert sell_tx_2["cryptoAmount"] == 1.0
     assert sell_tx_2["costBasisMethod"] == "fifo"
     assert sell_tx_2["costBasisUsed"] == 4.0
-    assert sell_tx_2["time"] == "2024-12-01T10:00:00+02:00"
+    assert sell_tx_2["time"].strftime("%Y-%m-%dT%H:%M:%S%z") == "2024-12-01T10:00:00+0200"

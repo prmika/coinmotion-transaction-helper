@@ -1,7 +1,9 @@
 import os
+import logging
+import zipfile
 from datetime import datetime
 from io import BytesIO
-import zipfile
+from typing import Any, Dict, List, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -9,6 +11,49 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 from config import REPORT_VERSION
+
+
+logger = logging.getLogger(__name__)
+
+DISCLAIMER_FI = (
+    "Tämä raportti on automaattisesti muodostettu Coinmotionin toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella.<br/><br/>"
+    "Raportti on suuntaa-antava eikä ole veroneuvontaa. Palvelu ei takaa raportin tietojen täydellisyyttä, oikeellisuutta tai soveltuvuutta käyttäjän yksittäiseen verotustilanteeseen. Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista luvuista.<br/><br/>"
+    "Raportti ei välttämättä huomioi oikein tai kattavasti kaikkia seuraavia tapahtumia:<br/>"
+    "• lompakkojen välisiä siirtoja<br/>"
+    "• ulkopuolisista pörsseistä tai palveluista tehtyjä transaktioita<br/>"
+    "• staking-, lending- tai muita tuottotapahtumia<br/>"
+    "• DeFi-tapahtumia<br/>"
+    "• airdroppeja ja hard fork -tapahtumia<br/>"
+    "• NFT-kauppaa<br/><br/>"
+    "Raportissa esitetyt laskelmat (esim. todellinen hankintahinta tai hankintameno-olettama) ovat laskennallisia. Hankintameno-olettaman käyttö ja lopullinen verotuksellinen valinta on aina käyttäjän vastuulla.<br/><br/>"
+    "Palvelun tarjoaja ei vastaa mahdollisista veroseuraamuksista, veronkorotuksista tai muista vahingoista, jotka aiheutuvat raportin käytöstä.<br/><br/>"
+    "Ajantasaiset ja sitovat ohjeet löytyvät Verohallinnon verkkosivuilta. Epäselvissä tilanteissa suositellaan ottamaan yhteyttä veroasiantuntijaan."
+)
+
+DISCLAIMER_EN = (
+    "This report has been automatically generated based on transaction data provided by Coinmotion and information supplied by the user.<br/><br/>"
+    "This report is for informational purposes only and does not constitute tax advice. The service does not guarantee the completeness, accuracy, or suitability of the report for the user’s individual tax situation. The user is solely responsible for verifying the correctness of the information and the figures reported to the tax authorities.<br/><br/>"
+    "The report may not fully or correctly account for the following events:<br/>"
+    "• transfers between wallets<br/>"
+    "• transactions from external exchanges or services<br/>"
+    "• staking, lending, or yield-related income<br/>"
+    "• DeFi transactions<br/>"
+    "• airdrops and hard forks<br/>"
+    "• NFT transactions<br/><br/>"
+    "Any calculations presented in the report (e.g. actual acquisition cost or deemed acquisition cost) are estimates. The choice and applicability of the deemed acquisition cost method is always the responsibility of the user.<br/><br/>"
+    "The service provider shall not be held liable for any tax consequences, penalties, or damages arising from the use of this report.<br/><br/>"
+    "For official and binding guidance, please refer to the Finnish Tax Administration or consult a qualified tax professional."
+)
+
+BASE_TABLE_STYLE = TableStyle([
+    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+    ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+    ("FONTSIZE", (0, 0), (-1, -1), 8),
+    ("FONTSIZE", (0, 0), (-1, 0), 8),
+    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+])
 
 
 OUTPUT_HEADERS = [
@@ -38,13 +83,12 @@ YEAR_HEADERS = [
 ]
 
 
-def write_pdf_zip(objects, output_folder="../data/output/", zip_name="pdf_reports.zip"):
+def write_pdf_zip(objects: Dict[str, Any], output_folder: str = "../data/output/", zip_name: str = "pdf_reports.zip") -> None:
     if not objects:
-        print("No objects to write")
+        logger.warning("No objects to write")
         return
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    os.makedirs(output_folder, exist_ok=True)
 
     zip_bytes = build_pdf_zip_bytes(objects)
     zip_path = os.path.join(output_folder, zip_name)
@@ -52,17 +96,20 @@ def write_pdf_zip(objects, output_folder="../data/output/", zip_name="pdf_report
         handle.write(zip_bytes)
 
 
-def build_pdf_zip_bytes(objects):
+def build_pdf_zip_bytes(objects: Dict[str, Any]) -> bytes:
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for currency, data in objects.items():
-            pdf_bytes = _build_pdf_bytes(currency, data)
-            filename = f"{_sanitize_filename(currency)}.pdf"
-            archive.writestr(filename, pdf_bytes)
+            try:
+                pdf_bytes = _build_pdf_bytes(currency, data)
+                filename = f"{_sanitize_filename(currency)}.pdf"
+                archive.writestr(filename, pdf_bytes)
+            except Exception as e:
+                logger.error(f"Failed to build PDF for currency {currency}: {e}")
     return buffer.getvalue()
 
 
-def _build_pdf_bytes(currency, data):
+def _build_pdf_bytes(currency: str, data: Dict[str, Any]) -> bytes:
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -71,6 +118,8 @@ def _build_pdf_bytes(currency, data):
         rightMargin=20,
         topMargin=20,
         bottomMargin=20,
+        title=f"Report - {currency}",
+        author="Coinmotion Transaction Helper",
     )
     styles = getSampleStyleSheet()
     disclaimer_style = ParagraphStyle(
@@ -123,11 +172,11 @@ def _build_pdf_bytes(currency, data):
         summary = data["years"][year]
         year_rows.append(
             [
-                year,
-                summary.get("fromTime", ""),
-                _format_eur(summary.get("wins", 0)),
-                _format_eur(summary.get("losses", 0)),
-                _format_eur(summary.get("total", 0)),
+                str(year),
+                str(summary.get("fromTime", "")),
+                str(_format_eur(summary.get("wins", 0))),
+                str(_format_eur(summary.get("losses", 0))),
+                str(_format_eur(summary.get("total", 0))),
             ]
         )
     elements.append(_make_table(year_rows, col_widths=_year_col_widths(doc.width)))
@@ -137,25 +186,28 @@ def _build_pdf_bytes(currency, data):
     elements.append(Paragraph("Transactions **", styles["Heading2"]))
     elements.append(Spacer(1, 16))
 
-    tx_rows = [[_header_cell(text, styles) for text in OUTPUT_HEADERS]]
+    tx_rows: List[List[Any]] = [[_header_cell(text, styles) for text in OUTPUT_HEADERS]]
     for item in data.get("transactions", []):
+        is_sell_fifo = item.get("type") == "sell" and item.get("costBasisMethod", "") == "fifo"
+        fee_value = str(_format_eur(item.get("fee", ""))) if is_sell_fifo else ""
+
         tx_rows.append(
             [
-                _format_time(item["time"]),
-                item["type"],
-                _format_crypto(item["cryptoAmount"]),
-                item["rate"],
-                _format_eur(item["eurAmount"]),
-                item["source"],
-                item["fromCurrency"],
-                item["toCurrency"],
-                _format_remaining_quantity(item.get("remainingQuantity", "")),
-                _format_eur(item.get("costBasis", "")),
-                _format_eur(item.get("assumedCost", "")),
-                _format_eur(item.get("costBasisUsed", "")),
-                item.get("costBasisMethod", ""),
-                _format_eur(item.get("fee", "")) if item["type"] == "sell" and item.get("costBasisMethod", "") == "fifo" else "",
-                _format_eur(item.get("profitLoss", "")),
+                str(_format_time(item.get("time"))),
+                str(item.get("type", "")),
+                str(_format_crypto(item.get("cryptoAmount", ""))),
+                str(item.get("rate", "")),
+                str(_format_eur(item.get("eurAmount", ""))),
+                str(item.get("source", "")),
+                str(item.get("fromCurrency", "")),
+                str(item.get("toCurrency", "")),
+                str(_format_remaining_quantity(item.get("remainingQuantity", ""))),
+                str(_format_eur(item.get("costBasis", ""))),
+                str(_format_eur(item.get("assumedCost", ""))),
+                str(_format_eur(item.get("costBasisUsed", ""))),
+                str(item.get("costBasisMethod", "")),
+                fee_value,
+                str(_format_eur(item.get("profitLoss", ""))),
             ]
         )
     elements.append(
@@ -169,83 +221,44 @@ def _build_pdf_bytes(currency, data):
 
     elements.append(Spacer(1, 12))
     elements.append(Paragraph("Disclaimer", styles["Heading2"]))
-    elements.append(
-        Paragraph(
-            """Tämä raportti on automaattisesti muodostettu Coinmotionin toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella.<br/><br/>
-            Raportti on suuntaa-antava eikä ole veroneuvontaa. Palvelu ei takaa raportin tietojen täydellisyyttä, oikeellisuutta tai soveltuvuutta käyttäjän yksittäiseen verotustilanteeseen. Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista luvuista.<br/><br/>
-            Raportti ei välttämättä huomioi oikein tai kattavasti kaikkia seuraavia tapahtumia:<br/>
-            • lompakkojen välisiä siirtoja<br/>
-            • ulkopuolisista pörsseistä tai palveluista tehtyjä transaktioita<br/>
-            • staking-, lending- tai muita tuottotapahtumia<br/>
-            • DeFi-tapahtumia<br/>
-            • airdroppeja ja hard fork -tapahtumia<br/>
-            • NFT-kauppaa<br/><br/>
-            Raportissa esitetyt laskelmat (esim. todellinen hankintahinta tai hankintameno-olettama) ovat laskennallisia. Hankintameno-olettaman käyttö ja lopullinen verotuksellinen valinta on aina käyttäjän vastuulla.<br/><br/>
-            Palvelun tarjoaja ei vastaa mahdollisista veroseuraamuksista, veronkorotuksista tai muista vahingoista, jotka aiheutuvat raportin käytöstä.<br/><br/>
-            Ajantasaiset ja sitovat ohjeet löytyvät Verohallinnon verkkosivuilta. Epäselvissä tilanteissa suositellaan ottamaan yhteyttä veroasiantuntijaan.""",
-            disclaimer_style,
-        )
-    )
+    elements.append(Paragraph(DISCLAIMER_FI, disclaimer_style))
     elements.append(Spacer(1, 8))
-    elements.append(
-        Paragraph(
-            """This report has been automatically generated based on transaction data provided by Coinmotion and information supplied by the user.<br/><br/>
-            This report is for informational purposes only and does not constitute tax advice. The service does not guarantee the completeness, accuracy, or suitability of the report for the user’s individual tax situation. The user is solely responsible for verifying the correctness of the information and the figures reported to the tax authorities.<br/><br/>
-            The report may not fully or correctly account for the following events:<br/>
-            • transfers between wallets<br/>
-            • transactions from external exchanges or services<br/>
-            • staking, lending, or yield-related income<br/>
-            • DeFi transactions<br/>
-            • airdrops and hard forks<br/>
-            • NFT transactions<br/><br/>
-            Any calculations presented in the report (e.g. actual acquisition cost or deemed acquisition cost) are estimates. The choice and applicability of the deemed acquisition cost method is always the responsibility of the user.<br/><br/>
-            The service provider shall not be held liable for any tax consequences, penalties, or damages arising from the use of this report.<br/><br/>
-            For official and binding guidance, please refer to the Finnish Tax Administration or consult a qualified tax professional.""",
-            disclaimer_style,
-        )
-    )
+    elements.append(Paragraph(DISCLAIMER_EN, disclaimer_style))
 
-    
-    doc.build(elements)
+    try:
+        doc.build(elements)
+    except Exception as e:
+        logger.error(f"Failed to build ReportLab document for {currency}: {e}")
+
     return buffer.getvalue()
 
 
-def _make_table(rows, repeat_header=False, col_widths=None):
+def _make_table(rows: List[List[Any]], repeat_header: bool = False, col_widths: Optional[List[float]] = None) -> Table:
     table = Table(rows, repeatRows=1 if repeat_header else 0, colWidths=col_widths)
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("FONTSIZE", (0, 0), (-1, 0), 8),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]
-        )
-    )
+    table.setStyle(BASE_TABLE_STYLE)
     return table
 
 
-def _sanitize_filename(name):
+def _sanitize_filename(name: str) -> str:
     cleaned = "".join(char if char.isalnum() or char in "._-" else "_" for char in name.strip())
     return cleaned or "UNKNOWN"
 
 
-def _header_cell(text, styles):
+def _header_cell(text: str, styles: Any) -> Paragraph:
     return Paragraph(text.replace("\n", "<br/>"), styles["BodyText"])
 
 
-def _format_time(value):
+def _format_time(value: Any) -> Any:
     try:
-        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S%z")
+        if isinstance(value, datetime):
+            return value.strftime("%d.%m.%Y %H:%M:%S")
+        parsed = datetime.strptime(str(value), "%Y-%m-%dT%H:%M:%S%z")
         return parsed.strftime("%d.%m.%Y %H:%M:%S")
     except (TypeError, ValueError):
         return value
 
 
-def _transaction_col_widths(total_width):
+def _transaction_col_widths(total_width: float) -> List[float]:
     fractions = [
         0.12,  # Time
         0.06,  # Type
@@ -266,24 +279,24 @@ def _transaction_col_widths(total_width):
     return [total_width * f for f in fractions]
 
 
-def _year_col_widths(total_width):
+def _year_col_widths(total_width: float) -> List[float]:
     fractions = [0.06, 0.24, 0.08, 0.08, 0.08]
     return [total_width * f for f in fractions]
 
-def _format_crypto(value):
+def _format_crypto(value: Any) -> Any:
     try:
         return f"{float(value):.8f}"
     except (TypeError, ValueError):
         return value
 
-def _format_eur(value):
+def _format_eur(value: Any) -> Any:
     try:
         return round(float(value), 2)
     except (TypeError, ValueError):
         return value
 
 
-def _format_remaining_quantity(value):
+def _format_remaining_quantity(value: Any) -> Any:
     try:
         amount = float(value)
         if abs(amount) <= 1e-8:
