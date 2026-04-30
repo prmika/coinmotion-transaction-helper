@@ -50,7 +50,6 @@ public class ReportService
                 if (tx.Type == TransactionType.Buy)
                 {
                     HandleBuy(fifo, tx);
-                    years[txYear].TotalBuyVolume += tx.FiatAmount;
                     processed.Add(ToProcessed(tx));
                 }
                 else if (tx.Type == TransactionType.Sell)
@@ -205,17 +204,27 @@ public class ReportService
             if (feeEur > 0 && totalRevenue > 0)
                 lotFee = feeEur * (lotRevenue / totalRevenue);
 
-            var lotNetRevenue = lotMethod == "fifo" ? lotRevenue - lotFee : lotRevenue;
-            var lotProfitLoss = lotNetRevenue - lotCostBasisUsed;
+            var lotProfitLoss = lotRevenue - lotFee - lotCostBasisUsed;
 
             cumulativeSold += lot.Quantity;
             var remainingAfter = remainingBefore - cumulativeSold;
 
             if (lotProfitLoss > 0)
+            {
                 years[txYear].Wins += lotProfitLoss;
+                years[txYear].ProfitSellVolume += lotRevenue;
+                years[txYear].ProfitBuyVolume += lotCostBasisUsed;
+                years[txYear].ProfitFees += lotFee;
+            }
             else
+            {
                 years[txYear].Losses += Math.Abs(lotProfitLoss);
+                years[txYear].LossSellVolume += lotRevenue;
+                years[txYear].LossBuyVolume += lotCostBasisUsed;
+                years[txYear].LossFees += lotFee;
+            }
 
+            years[txYear].TotalBuyVolume += lotCostBasisUsed;
             years[txYear].Total += Math.Round(lotProfitLoss, 2);
 
             splitTransactions.Add(new ProcessedTransaction

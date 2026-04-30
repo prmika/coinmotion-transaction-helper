@@ -197,7 +197,7 @@ public class ReportServiceTests
                 {
                     Years = new Dictionary<string, YearSummary>
                     {
-                        ["2024"] = new YearSummary { Period = "1.1.2024-31.12.2024", Wins = 2000, Losses = 500, Total = 1500 }
+                        ["2024"] = new YearSummary { Period = "1.1.2024-31.12.2024", Wins = 2000, Losses = 500, Total = 1500, TotalBuyVolume = 10000, TotalSellVolume = 7500 }
                     },
                     Transactions = new List<ProcessedTransaction>
                     {
@@ -211,7 +211,7 @@ public class ReportServiceTests
         var metrics = ReportService.CalculateMetrics(report);
 
         metrics.TotalSalesTransactions.Should().Be(2);
-        metrics.TotalSalesVolumeEur.Should().Be(2000);
+        metrics.TotalSalesVolumeEur.Should().Be(17500);
         metrics.TotalProfitLossEur.Should().Be(1500);
     }
 }

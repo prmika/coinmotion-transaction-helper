@@ -71,7 +71,7 @@ public class PdfReportGenerator : IReportGenerator
             {
                 ct.ThrowIfCancellationRequested();
 
-                var pdfBytes = GenerateCurrencyPdf(currency, data, report.BrokerName);
+                var pdfBytes = GenerateCurrencyPdf(currency, data);
                 var entry = archive.CreateEntry($"{currency}_report.pdf", CompressionLevel.Fastest);
                 using var entryStream = entry.Open();
                 entryStream.Write(pdfBytes);
@@ -82,7 +82,7 @@ public class PdfReportGenerator : IReportGenerator
         return Task.FromResult(zipStream.ToArray());
     }
 
-    private static byte[] GenerateCurrencyPdf(string currency, CurrencyReport data, string brokerName)
+    private static byte[] GenerateCurrencyPdf(string currency, CurrencyReport data)
     {
         var document = Document.Create(container =>
         {
@@ -95,7 +95,7 @@ public class PdfReportGenerator : IReportGenerator
                 {
                     header.Item().Text($"Tax Report — {currency}").FontSize(20).Bold();
                     header.Item().Text($"Generated on {DateTime.UtcNow:dd.MM.yyyy HH:mm:ss}").FontSize(8).Italic();
-                    header.Item().Text($"Tämä raportti on automaattisesti muodostettu {brokerName}n toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella. / This report has been automatically generated based on transaction data provided by {brokerName} and information supplied by the user.")
+                    header.Item().Text($"Tämä raportti on automaattisesti muodostettu välittäjän toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella. / This report has been automatically generated based on transaction data provided by the broker and information supplied by the user.")
                         .FontSize(7);
                 });
 
@@ -162,6 +162,51 @@ public class PdfReportGenerator : IReportGenerator
                     });
                     col.Item().Text("* Luvuista on vähennetty mahdolliset osto- ja myyntikulut. / The figures have been reduced by possible purchase and sale fees.").FontSize(7).Italic();
 
+                    // Tax declaration table
+                    col.Item().Text("Tax Declaration / Veroilmoitus").FontSize(14).Bold();
+                    col.Item().Text("Erittely verotusta varten: voitolliset ja tappiolliset myynnit erikseen. / Breakdown for tax declaration: profitable and loss-making sales separated.").FontSize(7).Italic();
+                    col.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2); // Year
+                            columns.RelativeColumn(1); // Category
+                            columns.RelativeColumn(2); // Sell Revenue
+                            columns.RelativeColumn(2); // Acquisition Cost
+                            columns.RelativeColumn(2); // Fees
+                            columns.RelativeColumn(2); // Profit/Loss
+                        });
+
+                        table.Header(header =>
+                        {
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Year").Bold().FontSize(8);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Category").Bold().FontSize(8);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Sell Revenue (EUR)").Bold().FontSize(8);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Acquisition Cost (EUR)").Bold().FontSize(8);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Selling Fees (EUR)").Bold().FontSize(8);
+                            header.Cell().Background(Colors.Grey.Lighten3).Padding(4).Text("Profit/Loss (EUR)").Bold().FontSize(8);
+                        });
+
+                        foreach (var (year, summary) in data.Years.OrderBy(y => y.Key))
+                        {
+                            // Profit row
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(year).FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text("Profit").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.ProfitSellVolume:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.ProfitBuyVolume:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.ProfitFees:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.Wins:F2}").FontSize(8);
+
+                            // Loss row
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text("").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text("Loss").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossSellVolume:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossBuyVolume:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossFees:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"-{summary.Losses:F2}").FontSize(8);
+                        }
+                    });
+
                     // Transactions table
                     col.Item().Text("Transactions **").FontSize(14).Bold();
                     col.Item().Table(table =>
@@ -206,8 +251,8 @@ public class PdfReportGenerator : IReportGenerator
 
                     // Disclaimers
                     col.Item().PaddingTop(20).Text("Disclaimer").FontSize(14).Bold();
-                    col.Item().Text(string.Format(DisclaimerFiTemplate, brokerName)).FontSize(7);
-                    col.Item().PaddingTop(10).Text(string.Format(DisclaimerEnTemplate, brokerName)).FontSize(7);
+                    col.Item().Text(string.Format(DisclaimerFiTemplate, "välittäjän")).FontSize(7);
+                    col.Item().PaddingTop(10).Text(string.Format(DisclaimerEnTemplate, "broker")).FontSize(7);
                 });
 
                 page.Footer().AlignCenter().Text(text =>
