@@ -4,7 +4,7 @@ import type { BrokerConfig } from "../config/brokerConfigs";
 import { translations, type Language } from "../i18n";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
-type ModalStep = "disclaimer" | "instructions" | "upload" | "support";
+type ModalStep = "disclaimer" | "instructions" | "upload" | "done" | "support";
 
 type PricingMetrics = {
   total_sales_transactions: number;
@@ -33,14 +33,20 @@ function BrokerModal({
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const [step, setStep] = useState<ModalStep>("disclaimer");
-  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedYear, setSelectedYear] = useState(
+    (new Date().getFullYear() - 1).toString(),
+  );
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pricingMetrics, setPricingMetrics] = useState<PricingMetrics | null>(
     null,
   );
 
   const t = translations[language].brokerModal;
-  const brokerTranslation = brokerConfig ? translations[language].brokers[brokerConfig.id as keyof typeof translations[typeof language]["brokers"]] : null;
+  const brokerTranslation = brokerConfig
+    ? translations[language].brokers[
+        brokerConfig.id as keyof (typeof translations)[typeof language]["brokers"]
+      ]
+    : null;
 
   useEffect(() => {
     if (!isOpen) {
@@ -49,7 +55,7 @@ function BrokerModal({
       setErrorMessage(null);
       setHasAcknowledged(false);
       setStep("disclaimer");
-      setSelectedYear("");
+      setSelectedYear((new Date().getFullYear() - 1).toString());
       setIsPreviewOpen(false);
       setPricingMetrics(null);
       if (downloadUrl) {
@@ -101,7 +107,7 @@ function BrokerModal({
 
     try {
       if (!brokerConfig) throw new Error("Missing broker config");
-      
+
       const url = new URL(`${apiBaseUrl}${brokerConfig.apiEndpoint}`);
       if (selectedYear) {
         url.searchParams.set("year", selectedYear);
@@ -118,18 +124,15 @@ function BrokerModal({
           const errData = await response.json();
           throw new Error(errData?.detail || t.errors.uploadFailed);
         }
-
         const text = await response.text();
         throw new Error(text || t.errors.uploadFailed);
       }
 
       const data = await response.json();
       setPricingMetrics(data.pricing_metrics);
-
       setDownloadUrl(`${apiBaseUrl}/report/download/${data.report_id}`);
-
       setStatus("success");
-      setStep("support");
+      setStep("done");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : t.errors.uploadFailed;
@@ -138,9 +141,34 @@ function BrokerModal({
     }
   };
 
-  if (!isOpen || !brokerConfig) {
-    return null;
-  }
+  const handleDownload = async () => {
+    if (!downloadUrl) return;
+    try {
+      setErrorMessage(null);
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || t.errors.downloadExpired);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "pdf_reports.zip";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      setStep("support");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : t.errors.downloadFailed,
+      );
+      setStatus("error");
+    }
+  };
+
+  if (!isOpen || !brokerConfig) return null;
 
   return (
     <div className="modal" role="dialog" aria-modal="true">
@@ -166,7 +194,7 @@ function BrokerModal({
             onClick={onClose}
             aria-label={t.close}
           >
-            ✕
+            x
           </button>
         </header>
 
@@ -175,9 +203,7 @@ function BrokerModal({
             <h3>{brokerTranslation.disclaimerTitle}</h3>
             <div className="modal__copy">
               {brokerTranslation.disclaimerParagraphs.map((paragraph) => (
-                <p className="muted" key={paragraph}>
-                  {paragraph}
-                </p>
+                <p key={paragraph}>{paragraph}</p>
               ))}
             </div>
             <label className="checkbox-label">
@@ -186,7 +212,7 @@ function BrokerModal({
                 checked={hasAcknowledged}
                 onChange={(e) => setHasAcknowledged(e.target.checked)}
               />
-              <span>{brokerTranslation.disclaimerAcknowledge}</span>
+              <span className="accent">{brokerTranslation.disclaimerAcknowledge}</span>
             </label>
             <div className="modal__actions">
               <button type="button" className="secondary" onClick={onClose}>
@@ -272,7 +298,11 @@ function BrokerModal({
                 </label>
               )}
               <label className="file-input">
-                <input type="file" accept={brokerConfig.fileType} onChange={handleFileChange} />
+                <input
+                  type="file"
+                  accept={brokerConfig.fileType}
+                  onChange={handleFileChange}
+                />
                 <span className="file-input__button">{t.chooseFile}</span>
                 <span className="file-input__name">
                   {file ? file.name : t.noFile}
@@ -283,9 +313,6 @@ function BrokerModal({
                 <div className="status status--error" role="alert">
                   {errorMessage}
                 </div>
-              )}
-              {status === "success" && (
-                <div className="status status--success">{t.success}</div>
               )}
 
               <div className="modal__actions">
@@ -308,92 +335,73 @@ function BrokerModal({
           </section>
         )}
 
-        {step === "support" && (
+        {step === "done" && (
           <section className="modal__section">
             <h3>{t.supportTitle}</h3>
 
+            {status === "error" && errorMessage ? (
+              <div className="status status--error" role="alert">
+                {errorMessage}
+              </div>
+            ) : (
+              <div className="status status--success">{t.success}</div>
+            )}
+
             {brokerConfig.metricsEnabled && pricingMetrics && (
-              <div
-                className="status"
-                style={{ textAlign: "left", marginBottom: "1rem" }}
-              >
-                <strong>{t.reportOverview}</strong>
-                <ul style={{ marginTop: "0.5rem", paddingLeft: "1.2rem" }}>
-                  <li>
-                    {t.transactionsProcessed}{" "}
-                    {pricingMetrics.total_sales_transactions}
-                  </li>
-                  <li>
-                    {t.totalSalesVolume}{" "}
-                    {pricingMetrics.total_sales_volume_eur.toFixed(2)} &euro;
-                  </li>
-                  <li>
-                    {t.totalProfitLoss}{" "}
-                    {pricingMetrics.total_profit_loss_eur.toFixed(2)} &euro;
-                  </li>
-                </ul>
+              <div className="modal__copy">
+                <p>
+                  {t.transactionsProcessed}{" "}
+                  {pricingMetrics.total_sales_transactions}
+                </p>
+                <p>
+                  {t.totalSalesVolume}{" "}
+                  {pricingMetrics.total_sales_volume_eur.toFixed(2)} EUR
+                </p>
+                <p>
+                  {t.totalProfitLoss}{" "}
+                  {pricingMetrics.total_profit_loss_eur.toFixed(2)} EUR
+                </p>
               </div>
             )}
 
-            <div className="modal__copy">
-              {status === "error" && errorMessage ? (
-                <div className="status status--error" role="alert">
-                  {errorMessage}
-                </div>
-              ) : (
-                <div className="status status--success">{t.success}</div>
-              )}
-              <p className="muted">{t.supportDescription}</p>
-              <a
-                href="https://www.buymeacoffee.com/prmika"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
-                  alt="Buy Me A Coffee"
-                  style={{ height: "60px", width: "217px" }}
-                />
-              </a>
-            </div>
+            <p className="muted">{t.supportDescription}</p>
+
             <div className="modal__actions">
               {downloadUrl && (
                 <button
+                  type="button"
                   className="primary"
-                  onClick={async () => {
-                    try {
-                      setErrorMessage(null);
-                      const response = await fetch(downloadUrl);
-                      if (!response.ok) {
-                        const errData = await response.json().catch(() => ({}));
-                        throw new Error(
-                          errData.detail || t.errors.downloadExpired,
-                        );
-                      }
-
-                      const blob = await response.blob();
-                      const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement("a");
-                      link.href = url;
-                      link.download = "pdf_reports.zip";
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-
-                      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-                    } catch (err) {
-                      setErrorMessage(
-                        err instanceof Error
-                          ? err.message
-                          : t.errors.downloadFailed,
-                      );
-                      setStatus("error");
-                    }
-                  }}
+                  onClick={handleDownload}
                 >
                   {t.download}
                 </button>
               )}
+            </div>
+          </section>
+        )}
+
+        {step === "support" && (
+          <section className="modal__section">
+            <h3>{t.donateTitle}</h3>
+            <p className="muted accent">{t.donateDescription}</p>
+            <div className="modal__copy">
+              <a
+                href="https://www.buymeacoffee.com/prmika"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ width: "fit-content" }}
+              >
+                <img
+                  src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+                  alt="Buy Me A Coffee"
+                  className="donate-img"
+                />
+              </a>
+            </div>
+            <div className="modal__actions">
+              <button type="button" className="secondary" onClick={onClose}>
+                {t.close}
+              </button>
             </div>
           </section>
         )}
@@ -419,7 +427,7 @@ function BrokerModal({
               onClick={() => setIsPreviewOpen(false)}
               aria-label={t.close}
             >
-              ✕
+              x
             </button>
             <img
               src={brokerConfig.videoAssetPath}
