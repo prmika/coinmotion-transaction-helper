@@ -1,96 +1,97 @@
-# Coinmotion Tax Helper
+# Crypto Tax Helper
 
 ## Architecture
 
-This is a Python-based cryptocurrency tax reporting tool with two execution modes:
+C# .NET 10 backend with React TypeScript frontend. Cryptocurrency tax reporting — upload broker CSV, get PDF report with FIFO cost basis.
 
-- **CLI**: Batch processing from `./data/input/` CSV files → Excel/PDF reports in `./data/output/`
-- **API**: FastAPI server accepting CSV uploads → returns `pdf_reports.zip`
-
-### Data Flow Pipeline
+### Data Flow
 
 ```
-CSV Upload → CsvReader → create_tax_report() → FIFO processor → PdfWriter/XlsWriter → Output
+CSV Upload → IBrokerFileParser → ReportService.ProcessTransactions() → FIFO → PdfReportGenerator → ZIP
 ```
 
-Key architectural points:
+### Solution Structure (Clean Architecture)
 
-- **Per-currency FIFO tracking**: Each cryptocurrency maintains its own FIFO queue in `src/helpers/fifo.py`
-- **Transaction splitting**: Sell transactions may generate multiple output rows if they span multiple purchase lots
-- **Year-based grouping**: Reports aggregate data by year with summary sheets
+- **CryptoTaxHelper.Domain** — FIFO queue, cost basis calculation, constants. Zero external dependencies.
+- **CryptoTaxHelper.Application** — `ReportService`, interfaces (`IBrokerFileParser`, `IReportGenerator`, `IReportStore`), models.
+- **CryptoTaxHelper.Infrastructure** — Broker parsers (Coinmotion), QuestPDF report generator, in-memory report store.
+- **CryptoTaxHelper.Api** — ASP.NET Core Minimal API endpoints, CORS, DI wiring.
 
-### Core Components
+### Key Interfaces
 
-- `src/readers/CsvReader.py`: Parses Coinmotion CSV exports (both file and stream)
-- `src/processor.py`: Groups transactions by currency, applies FIFO using `src/helpers/fifo.py`
-- `src/helpers/fifo.py`: FIFO queue with cost basis calculation, handles 10-year holding period (40% vs 20% assumed cost)
-- `src/writers/XlsWriter.py`: Generates Excel files with yearly summary + transaction detail sheets
-- `src/writers/PdfWriter.py`: Creates PDF reports bundled into a zip archive
-- `src/api.py`: FastAPI endpoints with CORS enabled for localhost:5173
+- `IBrokerFileParser` — each broker implements this. `ParseAsync(Stream) → NormalizedTransaction[]`. Resolved by `BrokerId`.
+- `IReportGenerator` — generates PDF zip from `TaxReport`.
+- `IReportStore` — stores/retrieves generated report bytes.
 
 ## Development Workflows
 
-### Running Locally
-
-**CLI Mode** (processes single CSV from `./data/input/`):
+### Running
 
 ```powershell
-python src\main.py
+cd backend
+dotnet run --project src/CryptoTaxHelper.Api   # API on http://localhost:8000
 ```
 
-**API Mode** (starts FastAPI server):
-
 ```powershell
-uvicorn src.api:app --reload
-```
-
-**Virtual Environment** (typically activated in terminal):
-
-```powershell
-& .venv\Scripts\Activate.ps1
+cd frontend
+npm run dev   # UI on http://localhost:5173
 ```
 
 ### Testing
 
-Run pytest test suite:
-
 ```powershell
-python -m pytest
+cd backend
+dotnet test
 ```
 
-Tests are in `tests/` and use `conftest.py` for fixtures. Key test file: `test_processor.py` validates FIFO logic across multiple currencies.
+Tests: `Domain.Tests` (FIFO unit), `Application.Tests` (service logic), `Integration.Tests` (HTTP pipeline).
+
+### Debugging
+
+F5 in VS Code with the `.NET Core Launch (web)` config. Requires C# Dev Kit extension.
 
 ## Project-Specific Conventions
 
 ### Transaction Structure
 
-Transactions always have `fromCurrency` and `toCurrency`. EUR is the base currency:
+`NormalizedTransaction` always has `FromCurrency` and `ToCurrency`. EUR is the base currency:
 
-- **Buy**: `fromCurrency: "EUR"` → adds to FIFO queue
-- **Sell**: `toCurrency: "EUR"` → consumes from FIFO queue
-- **Crypto-to-crypto**: Handled as-is without FIFO processing
+- **Buy**: `FromCurrency == "EUR"` → adds to FIFO queue
+- **Sell**: `ToCurrency == "EUR"` → consumes from FIFO queue
+- **Transfer**: `account_transfer_in` → synthetic buy with 0 EUR amount
 
 ### FIFO Behavior
 
-- Uses `EPSILON` (from `src/config.py`) for floating-point comparisons
-- Lot holding period ≥ 3650 days → 40% assumed cost rate, otherwise 20%
-- Raises `ValueError` if inventory insufficient for sell transaction
-- Returns `consumed_lots` list showing which purchase lots were used
+- `Constants.Epsilon` (1e-13) for floating-point comparisons
+- Holding period ≥ 3650 days → 40% assumed cost rate, otherwise 20%
+- Throws `InsufficientInventoryException` if inventory insufficient
+- Returns `ConsumedLot` list showing which purchase lots were used
+- Cost basis method: higher of actual FIFO cost vs assumed cost is used
+
+### Adding a New Broker
+
+1. Create `Infrastructure/Brokers/NewBroker/NewBrokerCsvParser.cs` implementing `IBrokerFileParser`
+2. Register in `Infrastructure/DependencyInjection.cs`
+3. Add broker to `frontend/src/config/brokerConfigs.ts`
+4. Add translations to `frontend/src/i18n.ts` (both `en` and `fi`)
 
 ### UI and Translations Pattern
 
-- **Mandatory Translations**: Every time new text is added or modified in the frontend UI, it must NOT be hardcoded. Translations MUST be added to `frontend/src/i18n.ts` (for both `en` and `fi`) and referenced in the component using the `translations` object.
+- **Mandatory Translations**: All UI text MUST go through `frontend/src/i18n.ts` (both `en` and `fi`). Never hardcode strings.
 
-### Error Handling Patterns
+### Error Handling
 
-- `src/main.py` enforces exactly one CSV file in `./data/input/` folder
-- API validates UTF-8 encoding and `.csv` extension
-- Optional `year` parameter in API filters report to specific year
+- API validates `.csv` extension and non-empty file
+- `FormatException` for CSV parse errors (with line number)
+- Optional `year` query param filters report to specific year
+- Reports auto-delete from memory after download
 
 ## Key Files
 
-- [src/main.py](src/main.py): CLI entry point
-- [src/processor.py](src/processor.py): Core report generation logic
-- [src/helpers/fifo.py](src/helpers/fifo.py): FIFO queue with tax calculation
-- [src/api.py](src/api.py): FastAPI server with `/report/pdf-zip` endpoint
-- [tests/test_processor.py](tests/test_processor.py): FIFO validation tests
+- [backend/src/CryptoTaxHelper.Api/Endpoints/ReportEndpoints.cs](backend/src/CryptoTaxHelper.Api/Endpoints/ReportEndpoints.cs): API endpoints
+- [backend/src/CryptoTaxHelper.Application/Services/ReportService.cs](backend/src/CryptoTaxHelper.Application/Services/ReportService.cs): Core report logic
+- [backend/src/CryptoTaxHelper.Domain/Fifo/FifoQueue.cs](backend/src/CryptoTaxHelper.Domain/Fifo/FifoQueue.cs): FIFO queue
+- [backend/src/CryptoTaxHelper.Infrastructure/Brokers/Coinmotion/CoinmotionCsvParser.cs](backend/src/CryptoTaxHelper.Infrastructure/Brokers/Coinmotion/CoinmotionCsvParser.cs): Coinmotion CSV parser
+- [backend/src/CryptoTaxHelper.Infrastructure/Reports/PdfReportGenerator.cs](backend/src/CryptoTaxHelper.Infrastructure/Reports/PdfReportGenerator.cs): PDF generation
+- [frontend/src/config/brokerConfigs.ts](frontend/src/config/brokerConfigs.ts): Broker registry
+- [frontend/src/i18n.ts](frontend/src/i18n.ts): Translations

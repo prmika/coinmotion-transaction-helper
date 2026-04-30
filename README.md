@@ -1,114 +1,80 @@
-# coinmotion-transaction-helper
+# Crypto Tax Helper
 
-Tool for reading Coinmotion transactions, grouping them by currency, and generating an Excel output file. Coinmotion reports are now CSV, so the default flow uses the CSV reader.
+Cryptocurrency tax reporting tool. Upload a broker CSV → get a PDF report with FIFO cost basis calculations.
 
-```mermaid
-flowchart TD
-    A["./data/input/*.csv (CLI)"] --> B["CsvReader"]
-    F["CSV Upload (API)"] --> B
-    B --> C["create_tax_report()"]
-    C --> G["FIFO Processing"]
-    G --> D["PdfWriter / XlsWriter"]
-    D --> E["./data/output/ (CLI)"]
-    D --> H["pdf_reports.zip (API)"]
-```
+## Prerequisites
 
-## Usage
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [Node.js 20+](https://nodejs.org/)
 
-### CLI Mode
+## Setup
 
-1. Export your Coinmotion report as `.csv`.
-2. Place exactly one `.csv` file in `./data/input/`.
-3. Run `src/main.py` from the root directory.
-4. The processed results will appear in `./data/output/` as one `.xlsx` per currency and a single `pdf_reports.zip` containing all PDF reports.
+### Backend
 
 ```powershell
-python src\main.py
+cd backend
+dotnet restore
+dotnet build
 ```
 
-### Web UI (API Mode)
+### Frontend
 
-You can run the web application to upload files through a UI.
+```powershell
+cd frontend
+npm install
+```
 
-1. Start the API server from the root directory:
-   ```powershell
-   uvicorn src.api:app --reload
-   ```
-2. Start the Vite React development server:
-   ```powershell
-   cd frontend
-   npm run dev
-   ```
-3. Open `http://localhost:5173` in your browser.
+## Running
 
-## Features
+Start both in separate terminals:
 
-- Reads Coinmotion `.csv` transaction exports.
-- Normalizes and groups transactions by currency.
-- Generates a per-currency report structure and writes to Excel.
+```powershell
+# Terminal 1 - API (http://localhost:8000)
+cd backend
+dotnet run --project src/CryptoTaxHelper.Api
 
-## Project Structure
+# Terminal 2 - Frontend (http://localhost:5173)
+cd frontend
+npm run dev
+```
 
-- `src/readers/CsvReader.py`: CSV parsing for Coinmotion exports.
-- `src/processor.py`: Builds the per-currency report structure used for output.
-- `src/helpers/fifo.py`: Core logic for managing FIFO queue and assigning cost basis and hold rules.
-- `src/writers/XlsWriter.py`: Writes one output file per currency with a yearly summary and transactions.
-- `src/writers/PdfWriter.py`: Builds PDFs into a single zip archive.
-- `src/api.py`: FastAPI application serving the REST API.
-- `src/main.py`: Entrypoint for CLI operations.
-- `frontend/`: React + Vite web application containing UI components and i18n configuration (`frontend/src/i18n.ts`).
-
-## Dependencies
-
-- Python 3.x
-- [openpyxl](https://pypi.org/project/openpyxl/)
-- [xlrd](https://pypi.org/project/xlrd/) (legacy `.xls` reader support)
-- [reportlab](https://pypi.org/project/reportlab/) (PDF output)
-
-## Installation
-
-### Backend (Python)
-
-1. Install Python 3.x.
-2. Clone or download this repository.
-3. Navigate to the project directory and create a virtual environment:
-   ```sh
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   # source .venv/bin/activate  # macOS/Linux
-   ```
-4. Install dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-### Frontend (React/Vite)
-
-1. Navigate to the `frontend` directory:
-   ```sh
-   cd frontend
-   ```
-2. Install npm dependencies:
-   ```sh
-   npm install
-   ```
+Open http://localhost:5173.
 
 ## Tests
 
-Run the test suite with:
-
 ```powershell
-python -m pytest
+cd backend
+dotnet test
 ```
 
-## API
+## API Endpoints
 
-Start the API server:
+| Method | Path                          | Description                                                                  |
+| ------ | ----------------------------- | ---------------------------------------------------------------------------- |
+| POST   | `/report/generate`            | Upload CSV (multipart), optional `?year=2024`. Returns `report_id` + metrics |
+| GET    | `/report/download/{reportId}` | Download `pdf_reports.zip`                                                   |
 
-```powershell
-uvicorn api:app --reload
+## Project Structure
+
+```
+backend/
+├── src/
+│   ├── CryptoTaxHelper.Api/             # Minimal API endpoints
+│   ├── CryptoTaxHelper.Application/     # Business logic, interfaces
+│   ├── CryptoTaxHelper.Domain/          # FIFO queue, cost basis (no deps)
+│   └── CryptoTaxHelper.Infrastructure/  # Broker parsers, PDF gen, storage
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/     # React components
+│   ├── config/         # Broker configurations
+│   └── i18n.ts         # Translations (fi/en)
 ```
 
-Upload a CSV file to receive `pdf_reports.zip`:
+## Adding a New Broker
 
-- `POST /report/pdf-zip` (multipart form-data with `file`)
+1. Create `Infrastructure/Brokers/YourBroker/YourBrokerCsvParser.cs` implementing `IBrokerFileParser`
+2. Register in `Infrastructure/DependencyInjection.cs`
+3. Add broker entry in `frontend/src/config/brokerConfigs.ts`
+4. Add translations in `frontend/src/i18n.ts`
