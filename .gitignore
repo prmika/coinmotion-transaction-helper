@@ -146,6 +146,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Project-local inspection notes
+DEVELOPMENT_PLAN.md
+
 # pytype static type analyzer
 .pytype/
 
