@@ -33,6 +33,9 @@ public class ReportService
         if (transactions.Count == 0)
             return new TaxReport { Currencies = new Dictionary<string, CurrencyReport>() };
 
+        foreach (var tx in transactions)
+            ValidateFinancialInputs(tx);
+
         var brokerName = transactions[0].Source;
         var deficits = ReconcileInventory(transactions);
         if (deficits.Count > 0)
