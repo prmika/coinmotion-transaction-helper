@@ -5,23 +5,31 @@ namespace CryptoTaxHelper.Infrastructure.Reports;
 
 public class InMemoryReportStore : IReportStore
 {
-    private readonly ConcurrentDictionary<string, byte[]> _store = new();
+    private readonly ConcurrentDictionary<string, ReportEntry> _store = new();
+    private readonly TimeSpan _retention = TimeSpan.FromMinutes(30);
 
-    public string Store(byte[] reportData)
+    public string Store(byte[] reportData, string ownerId)
     {
         var id = Guid.NewGuid().ToString();
-        _store[id] = reportData;
+        _store[id] = new ReportEntry(reportData, ownerId, DateTimeOffset.UtcNow.Add(_retention));
         return id;
     }
 
-    public byte[]? Retrieve(string reportId)
+    public byte[]? Consume(string reportId, string ownerId)
     {
-        _store.TryGetValue(reportId, out var data);
-        return data;
+        if (!_store.TryGetValue(reportId, out var entry)) return null;
+        if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            RemoveEntry(reportId, entry);
+            return null;
+        }
+        if (entry.OwnerId != ownerId) return null;
+        return RemoveEntry(reportId, entry) ? entry.Data : null;
     }
 
-    public bool Remove(string reportId)
-    {
-        return _store.TryRemove(reportId, out _);
-    }
+    private bool RemoveEntry(string reportId, ReportEntry entry) =>
+        ((ICollection<KeyValuePair<string, ReportEntry>>)_store)
+            .Remove(new KeyValuePair<string, ReportEntry>(reportId, entry));
+
+    private sealed record ReportEntry(byte[] Data, string OwnerId, DateTimeOffset ExpiresAt);
 }

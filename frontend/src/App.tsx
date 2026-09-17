@@ -1,12 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import BrokerModal from "./components/BrokerModal";
 import { translations, type Language } from "./i18n";
 import { BROKERS, type BrokerId } from "./config/brokerConfigs";
+import { beginLogin, completeLogin, getAccessToken, isOidcConfigured, logout } from "./auth";
 
 function App() {
   const [activeBrokerId, setActiveBrokerId] = useState<BrokerId | null>(null);
   const [language, setLanguage] = useState<Language>("fi");
+  const [accessToken, setAccessToken] = useState<string | null>(getAccessToken());
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    completeLogin().then((completed) => completed && setAccessToken(getAccessToken())).catch((error: unknown) => setAuthError(error instanceof Error ? error.message : "Login failed"));
+  }, []);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const timer = window.setInterval(() => setAccessToken(getAccessToken()), 1000);
+    return () => window.clearInterval(timer);
+  }, [accessToken]);
 
   const apiBaseUrl = useMemo(() => {
     return (
@@ -17,11 +30,17 @@ function App() {
 
   const t = translations[language];
 
+  const handleLogin = async () => {
+    try { setAuthError(null); await beginLogin(); } catch (error) { setAuthError(error instanceof Error ? error.message : "Login failed"); }
+  };
+
   return (
     <div className="app">
       <header className="app__header">
         <h1>{t.app.title}</h1>
         <p>{t.app.subtitle}</p>
+        {isOidcConfigured() && (accessToken ? <button type="button" onClick={() => void logout().then(() => setAccessToken(null))}>Log out</button> : <button type="button" onClick={() => void handleLogin()}>Log in</button>)}
+        {authError && <p role="alert">{authError}</p>}
         <div className="language-toggle" role="group" aria-label="Language">
           <button
             type="button"
@@ -47,7 +66,7 @@ function App() {
             <button
               className="broker-item"
               type="button"
-              onClick={() => setActiveBrokerId("coinmotion")}
+              onClick={() => accessToken ? setActiveBrokerId("coinmotion") : void handleLogin()}
             >
               <span>Coinmotion — {t.app.coinmotionDescription}</span>
               <span className="broker-tag broker-tag--active">
@@ -77,6 +96,7 @@ function App() {
         onClose={() => setActiveBrokerId(null)}
         language={language}
         brokerConfig={activeBrokerId ? BROKERS[activeBrokerId] : null}
+        accessToken={accessToken}
       />
     </div>
   );

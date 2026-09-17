@@ -109,7 +109,7 @@ public class CoinmotionCsvParser : IBrokerFileParser
             }
             catch (Exception ex)
             {
-                throw new FormatException($"Error parsing CSV row {lineNum + 1}: {ex.Message}", ex);
+                throw new FormatException($"Invalid CSV data on row {lineNum + 1}.", ex);
             }
         }
 
