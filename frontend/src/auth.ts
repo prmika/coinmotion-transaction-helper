@@ -1,3 +1,5 @@
+import { sha256 } from "js-sha256";
+
 type OidcConfiguration = {
   authorization_endpoint: string;
   token_endpoint: string;
@@ -12,6 +14,7 @@ type TokenResponse = {
 
 const authority = import.meta.env.VITE_OIDC_AUTHORITY as string | undefined;
 const clientId = import.meta.env.VITE_OIDC_CLIENT_ID as string | undefined;
+const audience = import.meta.env.VITE_OIDC_AUDIENCE as string | undefined;
 const scope = (import.meta.env.VITE_OIDC_SCOPE as string | undefined) ?? "openid profile tax-helper.reports";
 const redirectUri = `${window.location.origin}${window.location.pathname}`;
 
@@ -35,16 +38,36 @@ async function getConfiguration(): Promise<OidcConfiguration> {
 export async function beginLogin(): Promise<void> {
   const oidc = await getConfiguration();
   const verifier = base64Url(crypto.getRandomValues(new Uint8Array(32)));
-  const challenge = base64Url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
+  const verifierBytes = new TextEncoder().encode(verifier);
+  const digest = globalThis.crypto?.subtle
+    ? await globalThis.crypto.subtle.digest("SHA-256", verifierBytes)
+    : sha256.arrayBuffer(verifier);
+  const challenge = base64Url(new Uint8Array(digest));
   const state = base64Url(crypto.getRandomValues(new Uint8Array(24)));
   sessionStorage.setItem("oidc_pkce_verifier", verifier);
   sessionStorage.setItem("oidc_state", state);
-  const params = new URLSearchParams({ response_type: "code", client_id: clientId!, redirect_uri: redirectUri, scope, state, code_challenge: challenge, code_challenge_method: "S256" });
+  const authorizationParams: Record<string, string> = {
+    response_type: "code",
+    client_id: clientId!,
+    redirect_uri: redirectUri,
+    scope,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  };
+  if (audience) authorizationParams.audience = audience;
+  const params = new URLSearchParams(authorizationParams);
   window.location.assign(`${oidc.authorization_endpoint}?${params}`);
 }
 
 export async function completeLogin(): Promise<boolean> {
   const params = new URLSearchParams(window.location.search);
+  const providerError = params.get("error");
+  if (providerError) {
+    const description = params.get("error_description");
+    window.history.replaceState({}, document.title, window.location.pathname);
+    throw new Error(description ? `${providerError}: ${description}` : providerError);
+  }
   const code = params.get("code");
   if (!code) return false;
   const state = params.get("state");
