@@ -223,9 +223,7 @@ public class ReportServiceTests
             new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "1.0000000000000" },
             new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 3, SourceCryptoAmount = "1.0000000000000" }
         };
-
         var report = ReportService.ProcessTransactions(transactions);
-
         report.ValidationStatus.Should().Be("complete");
         report.InventoryDeficits.Should().BeEmpty();
     }
@@ -238,10 +236,7 @@ public class ReportServiceTests
             new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceCryptoAmount = "1" },
             new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1.0000000000001, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceCryptoAmount = "1.0000000000001" }
         };
-
-        var report = ReportService.ProcessTransactions(transactions);
-
-        report.InventoryDeficits.Should().BeEmpty();
+        ReportService.ProcessTransactions(transactions).InventoryDeficits.Should().BeEmpty();
     }
 
     [Fact]
@@ -252,10 +247,8 @@ public class ReportServiceTests
             new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "1" },
             new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1.00000002, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 8, SourceCryptoAmount = "1.00000002" }
         };
-
         var report = ReportService.ProcessTransactions(transactions);
         var deficit = report.InventoryDeficits.Single();
-
         report.ValidationStatus.Should().Be("blocked");
         report.Currencies.Should().BeEmpty();
         deficit.Asset.Should().Be("BTC");
@@ -273,10 +266,36 @@ public class ReportServiceTests
             new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 2, FiatAmount = 100, Rate = 50, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "2" },
             new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "ETH", ToCurrency = "EUR", CryptoAmount = 3, FiatAmount = 100, Rate = 33, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 3, SourceCryptoAmount = "3" }
         };
-
         var report = ReportService.ProcessTransactions(transactions);
-
         report.InventoryDeficits.Select(d => d.Asset).Should().BeEquivalentTo("BTC", "ETH");
         report.InventoryDeficits.Should().OnlyContain(d => d.AvailableQuantity == 0);
     }
+
+    [Fact]
+    public void ProcessTransactions_IncludesEurBuyAndSellFeesInProfitLoss()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T10:00:00+02:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 80, Rate = 80, Fee = 10, FeeCurrency = "EUR", Source = "Test" },
+            new() { Time = Ts("2024-02-01T10:00:00+02:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 5, FeeCurrency = "EUR", Source = "Test" }
+        };
+        var report = ReportService.ProcessTransactions(transactions);
+        var sell = report.Currencies["BTC"].Transactions.Single(t => t.Type == TransactionType.Sell);
+        sell.CostBasis.Should().Be(90);
+        sell.Fee.Should().Be(5);
+        sell.ProfitLoss.Should().Be(5);
+        report.Currencies["BTC"].Years["2024"].Total.Should().Be(5);
+    }
+
+    [Fact]
+    public void ProcessTransactions_RejectsNonFiniteFinancialInput()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T10:00:00+02:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = double.NaN, FiatAmount = 80, Rate = 80, Fee = 0, FeeCurrency = "EUR", Source = "Test" }
+        };
+        var act = () => ReportService.ProcessTransactions(transactions);
+        act.Should().Throw<ArgumentException>();
+    }
+
 }
