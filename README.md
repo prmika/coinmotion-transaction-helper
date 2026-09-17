@@ -64,6 +64,12 @@ dotnet run --project src/CryptoTaxHelper.Api
 | `POST` | `/report/generate?year=2024` | Multipart upload with a `file` field. The file name must end in `.csv`. Returns `report_id` and pricing metrics. `year` is optional. |
 | `GET` | `/report/download/{reportId}` | Returns `pdf_reports.zip` once. The in-memory report is removed after retrieval. |
 
+### Coinmotion quantity reconciliation
+
+The Coinmotion import preserves the CSV quantity text and source row number. Before FIFO processing, each asset is reconciled using a technical numeric tolerance of `1e-13` crypto units only. A positive deficit above that tolerance returns HTTP 422 with exact available, requested, difference, source row, and timestamp details; no balancing or zero-cost transaction is synthesized, and no report is stored. This tolerance is an implementation policy, not a tax or Vero threshold.
+
+Before uploading, provide the complete export, including purchases, sales, transfers, and fees, and relevant activity from other wallets or exchanges. A reconciliation failure must be investigated before filing; the application does not determine whether a difference is tax-relevant.
+
 The API currently permits the local frontend origin `http://localhost:5173` through CORS. It has no authentication, persistent storage, configured upload limit, or production deployment manifest; do not expose it publicly without addressing those concerns.
 
 ## Project structure
