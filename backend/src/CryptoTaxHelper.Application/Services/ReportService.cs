@@ -117,14 +117,13 @@ public class ReportService
         return new TaxReport { Currencies = filtered };
     }
 
-    public async Task<string> GenerateAndStoreReportAsync(TaxReport report, CancellationToken ct = default)
+    public async Task<string> GenerateAndStoreReportAsync(TaxReport report, string ownerId, CancellationToken ct = default)
     {
         var zipBytes = await _reportGenerator.GeneratePdfZipAsync(report, ct);
-        return _reportStore.Store(zipBytes);
+        return _reportStore.Store(zipBytes, ownerId);
     }
 
-    public byte[]? RetrieveReport(string reportId) => _reportStore.Retrieve(reportId);
-    public bool RemoveReport(string reportId) => _reportStore.Remove(reportId);
+    public byte[]? ConsumeReport(string reportId, string ownerId) => _reportStore.Consume(reportId, ownerId);
 
     private static Dictionary<string, List<NormalizedTransaction>> GroupByCurrency(
         IReadOnlyList<NormalizedTransaction> transactions)
