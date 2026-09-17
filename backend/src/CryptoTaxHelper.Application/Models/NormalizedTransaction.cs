@@ -12,4 +12,6 @@ public record NormalizedTransaction
     public required double Fee { get; init; }
     public required string FeeCurrency { get; init; }
     public required string Source { get; init; }
+    public int? SourceRow { get; init; }
+    public string? SourceCryptoAmount { get; init; }
 }

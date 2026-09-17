@@ -214,4 +214,69 @@ public class ReportServiceTests
         metrics.TotalSalesVolumeEur.Should().Be(17500);
         metrics.TotalProfitLossEur.Should().Be(1500);
     }
+
+    [Fact]
+    public void ProcessTransactions_ExactMatch_IsComplete()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "1.0000000000000" },
+            new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 3, SourceCryptoAmount = "1.0000000000000" }
+        };
+
+        var report = ReportService.ProcessTransactions(transactions);
+
+        report.ValidationStatus.Should().Be("complete");
+        report.InventoryDeficits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ProcessTransactions_DeficitAtTolerance_IsNotBlocked()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceCryptoAmount = "1" },
+            new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1.0000000000001, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceCryptoAmount = "1.0000000000001" }
+        };
+
+        var report = ReportService.ProcessTransactions(transactions);
+
+        report.InventoryDeficits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ProcessTransactions_DeficitAboveTolerance_IsBlockedWithSourceContext()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Buy, FromCurrency = "EUR", ToCurrency = "BTC", CryptoAmount = 1, FiatAmount = 100, Rate = 100, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "1" },
+            new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 1.00000002, FiatAmount = 120, Rate = 120, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 8, SourceCryptoAmount = "1.00000002" }
+        };
+
+        var report = ReportService.ProcessTransactions(transactions);
+        var deficit = report.InventoryDeficits.Single();
+
+        report.ValidationStatus.Should().Be("blocked");
+        report.Currencies.Should().BeEmpty();
+        deficit.Asset.Should().Be("BTC");
+        deficit.AvailableQuantity.Should().Be(1);
+        deficit.RequestedQuantity.Should().Be(1.00000002m);
+        deficit.Difference.Should().Be(0.00000002m);
+        deficit.SourceRow.Should().Be(8);
+    }
+
+    [Fact]
+    public void ProcessTransactions_MultipleAssets_ReportsEachDeficitWithoutSyntheticRows()
+    {
+        var transactions = new List<NormalizedTransaction>
+        {
+            new() { Time = Ts("2024-01-01T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "BTC", ToCurrency = "EUR", CryptoAmount = 2, FiatAmount = 100, Rate = 50, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 2, SourceCryptoAmount = "2" },
+            new() { Time = Ts("2024-01-02T00:00:00+00:00"), Type = TransactionType.Sell, FromCurrency = "ETH", ToCurrency = "EUR", CryptoAmount = 3, FiatAmount = 100, Rate = 33, Fee = 0, FeeCurrency = "EUR", Source = "Coinmotion Oy", SourceRow = 3, SourceCryptoAmount = "3" }
+        };
+
+        var report = ReportService.ProcessTransactions(transactions);
+
+        report.InventoryDeficits.Select(d => d.Asset).Should().BeEquivalentTo("BTC", "ETH");
+        report.InventoryDeficits.Should().OnlyContain(d => d.AvailableQuantity == 0);
+    }
 }
