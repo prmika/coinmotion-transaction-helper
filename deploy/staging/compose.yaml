@@ -20,7 +20,7 @@ services:
       - ALL
     restart: unless-stopped
     networks:
-      - staging
+      - api-internal
 
   web:
     image: ${WEB_IMAGE:?Set WEB_IMAGE to the tested GHCR tag or digest}
@@ -42,8 +42,10 @@ services:
       - ALL
     restart: unless-stopped
     networks:
-      - staging
+      - web-ingress
+      - api-internal
 
 networks:
-  staging:
+  web-ingress: {}
+  api-internal:
     internal: true
