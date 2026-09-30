@@ -108,7 +108,10 @@ function BrokerModal({
     try {
       if (!brokerConfig) throw new Error("Missing broker config");
 
-      const url = new URL(`${apiBaseUrl}${brokerConfig.apiEndpoint}`);
+      const url = new URL(
+        `${apiBaseUrl}${brokerConfig.apiEndpoint}`,
+        window.location.origin,
+      );
       if (selectedYear) {
         url.searchParams.set("year", selectedYear);
       }

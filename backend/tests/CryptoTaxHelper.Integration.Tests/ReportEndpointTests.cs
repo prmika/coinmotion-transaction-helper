@@ -17,6 +17,16 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         _client = factory.CreateClient();
     }
 
+    [Fact]
+    public async Task Healthz_ReturnsOkWithoutInfrastructureDetails()
+    {
+        var response = await _client.GetAsync("/healthz");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Be("{\"status\":\"ok\"}");
+    }
+
     private const string SampleCsv = """
         time,type,fromCurrency,toCurrency,eurAmount,cryptoAmount,rate,fee,feeCurrency
         2024-01-01T10:00:00+02:00,buy,EUR,BTC,10000,1.0,10000,0,EUR
@@ -38,6 +48,19 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var doc = JsonDocument.Parse(json);
         doc.RootElement.GetProperty("report_id").GetString().Should().NotBeNullOrEmpty();
         doc.RootElement.GetProperty("pricing_metrics").GetProperty("total_sales_transactions").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Generate_OversizedCsv_Returns413()
+    {
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(new byte[10 * 1024 * 1024 + 1]);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "large.csv");
+
+        var response = await _client.PostAsync("/report/generate", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
     }
 
     [Fact]
