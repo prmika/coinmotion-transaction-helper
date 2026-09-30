@@ -70,7 +70,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Build and start staging stack
-        run: docker compose --file deploy/staging/compose.yaml up --detach --build --wait --wait-timeout 120
+        run: |
+          if ! docker compose --file deploy/staging/compose.yaml up --detach --build --wait --wait-timeout 120; then
+            docker compose --file deploy/staging/compose.yaml ps --all
+            docker compose --file deploy/staging/compose.yaml logs --no-color
+            exit 1
+          fi
       - name: Exercise the complete staging path with synthetic data
         run: tests/smoke/container-smoke.sh
       - name: Stop staging stack
