@@ -12,6 +12,15 @@ type PricingMetrics = {
   total_profit_loss_eur: number;
 };
 
+type ReconciliationDeficit = {
+  asset: string;
+  availableQuantity: number;
+  requestedQuantity: number;
+  difference: number;
+  sourceRow?: number;
+  sourceTime: string;
+};
+
 type BrokerModalProps = {
   isOpen: boolean;
   apiBaseUrl: string;
@@ -122,6 +131,13 @@ function BrokerModal({
         const contentType = response.headers.get("content-type");
         if (contentType?.includes("application/json")) {
           const errData = await response.json();
+          if (errData?.code === "inventory_reconciliation_failed") {
+            const details = (errData.deficits as ReconciliationDeficit[] | undefined)
+              ?.map((item) =>
+                `${item.asset}: ${item.availableQuantity} available, ${item.requestedQuantity} requested, difference ${item.difference} (row ${item.sourceRow ?? "?"}, ${item.sourceTime})`,
+              ).join("; ");
+            throw new Error(`${t.errors.reconciliation}${details ? ` ${details}` : ""}`);
+          }
           throw new Error(errData?.detail || t.errors.uploadFailed);
         }
         const text = await response.text();
@@ -282,6 +298,9 @@ function BrokerModal({
           <section className="modal__section">
             <h3>{t.uploadTitle}</h3>
             <p className="muted">{t.uploadDescription}</p>
+            <div className="status status--warning" role="note">
+              {t.completenessWarning}
+            </div>
             <form className="upload" onSubmit={handleSubmit}>
               {brokerConfig.hasYearSelection && (
                 <label className="field-row">

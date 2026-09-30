@@ -23,6 +23,8 @@ export const translations = {
       uploadTitle: "Lataa CSV",
       uploadDescription:
         "Palvelu palauttaa zip-paketin, jossa on PDF-raportit valuutoittain.",
+      completenessWarning:
+        "Lataa täydellinen Coinmotion-vienti ajalta: ostot, myynnit, tilisiirrot ja kulut. Älä muokkaa määriä tai lisää tasapainottavia rivejä. Palvelu ei voi ratkaista, onko pieni ero verotuksessa merkityksetön.",
       yearLabel: "Raportin vuosi (valinnainen)",
       yearHint: "Jätä tyhjiksi, jos haluat raportin kaikilta vuosilta.",
       chooseFile: "Valitse tiedosto",
@@ -48,6 +50,8 @@ export const translations = {
         downloadFailed: "Lataus epäonnistui.",
         downloadExpired:
           "Lataus epäonnistui. Raportti on saattanut vanhentua. Luo uusi raportti.",
+        reconciliation:
+          "Tietomäärän täsmäytys ei täsmää. Tarkista alkuperäinen Coinmotion-vienti ja muut lompakot tai pörssit. Älä lisää keinotekoista nollariviä.",
       },
       enlargeVideo: "Klikkaa suurentaaksesi",
       close: "Sulje",
@@ -96,6 +100,8 @@ export const translations = {
       title: "Generate tax report",
       uploadTitle: "Upload CSV",
       uploadDescription: "Returns a zip file with one PDF report per currency.",
+      completenessWarning:
+        "Upload the complete Coinmotion export for the period, including buys, sales, transfers, and fees. Do not edit quantities or add balancing rows. The service cannot determine whether a small difference is immaterial for tax purposes.",
       yearLabel: "Report year (optional)",
       yearHint: "Leave empty to include all years.",
       chooseFile: "Choose file",
@@ -121,6 +127,8 @@ export const translations = {
         downloadFailed: "Download failed.",
         downloadExpired:
           "Download failed. Report may have expired. Generate again.",
+        reconciliation:
+          "Inventory reconciliation failed. Check the original Coinmotion export and other wallets or exchanges. Do not add an artificial zero-cost row.",
       },
       enlargeVideo: "Click to enlarge",
       close: "Close",

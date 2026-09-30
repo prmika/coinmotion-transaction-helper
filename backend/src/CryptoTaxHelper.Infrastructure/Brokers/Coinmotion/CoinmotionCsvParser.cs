@@ -41,7 +41,8 @@ public class CoinmotionCsvParser : IBrokerFileParser
                 var toCurrency = GetField(fields, headerIndex, "toCurrency").Trim().ToUpperInvariant();
                 var type = GetField(fields, headerIndex, "type").Trim().ToLowerInvariant();
                 var eurAmount = ParseDouble(GetField(fields, headerIndex, "eurAmount"));
-                var cryptoAmount = ParseDouble(GetField(fields, headerIndex, "cryptoAmount"));
+                var rawCryptoAmount = GetField(fields, headerIndex, "cryptoAmount").Trim();
+                var cryptoAmount = ParseDouble(rawCryptoAmount);
                 var rate = ParseDouble(GetField(fields, headerIndex, "rate"));
                 var fee = ParseDouble(GetField(fields, headerIndex, "fee"));
                 var feeCurrency = GetField(fields, headerIndex, "feeCurrency").Trim().ToUpperInvariant();
@@ -65,7 +66,9 @@ public class CoinmotionCsvParser : IBrokerFileParser
                         Rate = rate,
                         Fee = fee,
                         FeeCurrency = feeCurrency,
-                        Source = "Coinmotion Oy"
+                        Source = "Coinmotion Oy",
+                        SourceRow = lineNum + 1,
+                        SourceCryptoAmount = rawCryptoAmount
                     };
                 }
                 else if (fromCurrency == "EUR" && toCurrency != "EUR")
@@ -81,7 +84,9 @@ public class CoinmotionCsvParser : IBrokerFileParser
                         Rate = rate,
                         Fee = fee,
                         FeeCurrency = feeCurrency,
-                        Source = "Coinmotion Oy"
+                        Source = "Coinmotion Oy",
+                        SourceRow = lineNum + 1,
+                        SourceCryptoAmount = rawCryptoAmount
                     };
                 }
                 else if (toCurrency == "EUR" && fromCurrency != "EUR")
@@ -97,7 +102,9 @@ public class CoinmotionCsvParser : IBrokerFileParser
                         Rate = rate,
                         Fee = fee,
                         FeeCurrency = feeCurrency,
-                        Source = "Coinmotion Oy"
+                        Source = "Coinmotion Oy",
+                        SourceRow = lineNum + 1,
+                        SourceCryptoAmount = rawCryptoAmount
                     };
                 }
                 else

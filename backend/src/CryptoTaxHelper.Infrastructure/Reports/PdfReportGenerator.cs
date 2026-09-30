@@ -103,6 +103,13 @@ public class PdfReportGenerator : IReportGenerator
                 {
                     col.Spacing(15);
 
+                    if (data.ValidationStatus != "complete")
+                    {
+                        col.Item().Background(Colors.Red.Lighten4).Padding(8).Text(
+                            "RECONCILIATION REQUIRES REVIEW / TÄSMÄYTYS VAATII TARKISTUKSEN: " +
+                            "This report must not be treated as complete. / Tätä raporttia ei tule pitää täydellisenä.").FontSize(10).Bold();
+                    }
+
                     // Dictionary table
                     col.Item().Text("Dictionary").FontSize(14).Bold();
                     col.Item().Table(table =>
