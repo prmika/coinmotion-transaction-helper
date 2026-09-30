@@ -1,0 +1,49 @@
+services:
+  api:
+    image: ${API_IMAGE:?Set API_IMAGE to the tested GHCR tag or digest}
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ReportStore__LifetimeMinutes: "${REPORT_RETENTION_MINUTES:-60}"
+    expose:
+      - "8080"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    networks:
+      - staging
+
+  web:
+    image: ${WEB_IMAGE:?Set WEB_IMAGE to the tested GHCR tag or digest}
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${STAGING_PORT:-18080}:8080"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    networks:
+      - staging
+
+networks:
+  staging:
+    internal: true

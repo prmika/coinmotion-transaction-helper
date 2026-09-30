@@ -1,3 +1,4 @@
+using CryptoTaxHelper.Api;
 using CryptoTaxHelper.Application.Services;
 
 namespace CryptoTaxHelper.Api.Endpoints;
@@ -23,6 +24,11 @@ public static class ReportEndpoints
 
         if (file.Length == 0)
             return Results.BadRequest(new { detail = "File is empty" });
+
+        if (file.Length > UploadLimits.MaxCsvBytes)
+            return Results.Problem(
+                statusCode: StatusCodes.Status413PayloadTooLarge,
+                detail: "CSV file must be 10 MB or smaller.");
 
         try
         {

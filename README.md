@@ -7,7 +7,7 @@ Crypto tax-reporting tool: upload a supported broker CSV, calculate FIFO cost ba
 - **Backend:** ASP.NET Core Minimal API targeting .NET 10.
 - **Supported broker:** Coinmotion CSV (`coinmotion`). A Binance entry exists in the frontend configuration but is not implemented and must not be selected as a working broker.
 - **Frontend:** React, TypeScript, and Vite, with Finnish and English UI translations.
-- **Storage:** Generated ZIPs are held in process memory and removed after download. This is suitable for local development, not yet a production deployment design.
+- **Storage:** Generated ZIPs are held in process memory, expire after 60 minutes if not downloaded, and are removed after the first successful download. Staging uses a synthetic-data-only Compose stack; it is not production-ready.
 
 ## Prerequisites
 
@@ -32,13 +32,13 @@ npm run lint
 npm run build
 ```
 
-The same backend test and frontend lint/build checks run in `.github/workflows/ci.yml` on pull requests targeting `main` and pushes to `main`.
+The same backend test and frontend lint/build checks run in `.github/workflows/ci.yml` for pushes to `main`/`test` and pull requests targeting those branches. CI also builds the staging containers and runs a synthetic-data smoke test. Only successful pushes to `test` publish GHCR images; server deployment remains manual. See [`docs/STAGING.md`](docs/STAGING.md) for the SSH-tunnel-only runbook.
 
 `npm ci` may report vulnerabilities in development dependencies. Review `npm audit` output before upgrading dependencies; do not apply automatic fixes without checking the resulting lockfile and build.
 
 ## Local development
 
-Start the API and frontend in separate terminals. Set the API URL explicitly because the frontend defaults to port 8000:
+Start the API and frontend in separate terminals. The Vite dev server proxies `/report` and `/healthz` to `http://localhost:8000`, so no `VITE_API_URL` is needed for the default setup:
 
 ```bash
 # Terminal 1
@@ -50,7 +50,7 @@ cd frontend
 npm run dev
 ```
 
-Open the Vite URL shown in the terminal, normally <http://localhost:5173>. For another API address, create a local frontend `.env` (not committed) with `VITE_API_URL=http://localhost:<port>`.
+Open the Vite URL shown in the terminal, normally <http://localhost:5173>. To use a different API address, create a local frontend `.env` (not committed) with `VITE_API_URL=http://localhost:<port>`.
 
 Windows PowerShell equivalent for the API URL:
 
@@ -64,9 +64,10 @@ dotnet run --project src/CryptoTaxHelper.Api
 | Method | Path | Description |
 | --- | --- | --- |
 | `POST` | `/report/generate?year=2024` | Multipart upload with a `file` field. The file name must end in `.csv`. Returns `report_id` and pricing metrics. `year` is optional. |
-| `GET` | `/report/download/{reportId}` | Returns `pdf_reports.zip` once. The in-memory report is removed after retrieval. |
+| `GET` | `/report/download/{reportId}` | Returns `pdf_reports.zip` once. The in-memory report is removed after retrieval and expires after 60 minutes if never downloaded. |
+| `GET` | `/healthz` | Minimal health check returning `{"status":"ok"}`. |
 
-The API currently permits the local frontend origin `http://localhost:5173` through CORS. It has no authentication, persistent storage, configured upload limit, or production deployment manifest; do not expose it publicly without addressing those concerns.
+CSV uploads are limited to 10 MiB per file. The API has no authentication and no persistent report storage. Do not expose it publicly; the staging Compose stack binds only to host loopback and is intended to be reached through SSH forwarding with synthetic data.
 
 ## Project structure
 
@@ -85,6 +86,10 @@ frontend/
     ├── components/                      # React UI components
     ├── config/                          # Broker registry/configuration
     └── i18n.ts                          # Finnish and English translations
+
+deploy/staging/                          # Loopback-only Compose and Nginx config
+tests/fixtures/                           # Synthetic CSVs only
+tests/smoke/                              # Container staging smoke checks
 ```
 
 ## Adding a broker
@@ -97,6 +102,6 @@ frontend/
 
 ## Data and privacy
 
-Uploaded CSVs contain financial information. Do not commit real exports, include them in logs or bug reports, or send them to external services. Generated reports currently exist in server memory until downloaded; production work must define authentication, retention, isolation, HTTPS, rate/size limits, and secret handling before deployment.
+Uploaded CSVs contain financial information. Do not commit real exports, include them in logs or bug reports, or send them to external services. Staging is unauthenticated and must use synthetic data only. Generated reports remain in process memory until downloaded or expired after 60 minutes; production work still requires an approved authentication, privacy, isolation, and deployment design.
 
-See [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the inspection findings and prioritized roadmap. See [`AGENTIC_CODING_PLAN.md`](AGENTIC_CODING_PLAN.md) for the story-to-verified-code workflow and proposed home-server staging design. Repository-specific agent guidance is in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
+See [`AGENTIC_CODING_PLAN.md`](AGENTIC_CODING_PLAN.md) for the story-to-verified-code workflow and [`docs/STAGING.md`](docs/STAGING.md) for the manual staging runbook. Repository-specific agent guidance is in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).

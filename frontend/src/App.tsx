@@ -9,10 +9,7 @@ function App() {
   const [language, setLanguage] = useState<Language>("fi");
 
   const apiBaseUrl = useMemo(() => {
-    return (
-      (import.meta.env.VITE_API_URL as string | undefined) ??
-      "http://localhost:8000"
-    );
+    return (import.meta.env.VITE_API_URL as string | undefined) ?? "";
   }, []);
 
   const t = translations[language];

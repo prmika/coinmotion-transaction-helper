@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, test]
   pull_request:
-    branches: [main]
+    branches: [main, test]
   workflow_dispatch:
 
 permissions:
@@ -55,3 +55,66 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  container-smoke:
+    name: Build and smoke-test staging containers
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      API_IMAGE: ghcr.io/local/coinmotion-transaction-helper-api:ci-${{ github.run_id }}
+      WEB_IMAGE: ghcr.io/local/coinmotion-transaction-helper-web:ci-${{ github.run_id }}
+      STAGING_PORT: "18080"
+      REPORT_RETENTION_MINUTES: "60"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Build and start staging stack
+        run: docker compose --file deploy/staging/compose.yaml up --detach --build --wait --wait-timeout 120
+      - name: Exercise the complete staging path with synthetic data
+        run: tests/smoke/container-smoke.sh
+      - name: Stop staging stack
+        if: always()
+        run: docker compose --file deploy/staging/compose.yaml down --volumes --remove-orphans
+
+  publish-images:
+    name: Publish public-staging image tags
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    needs: [container-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the validated commit
+        uses: actions/checkout@v4
+      - name: Normalize GHCR owner
+        id: repo
+        run: echo "owner=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.owner }}/coinmotion-transaction-helper-api:${{ github.sha }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/coinmotion-transaction-helper-api:test
+      - name: Publish web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.owner }}/coinmotion-transaction-helper-web:${{ github.sha }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/coinmotion-transaction-helper-web:test
