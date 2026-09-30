@@ -77,7 +77,15 @@ jobs:
             exit 1
           fi
       - name: Exercise the complete staging path with synthetic data
-        run: tests/smoke/container-smoke.sh
+        run: |
+          if ! tests/smoke/container-smoke.sh; then
+            docker compose --file deploy/staging/compose.yaml ps --all
+            docker compose --file deploy/staging/compose.yaml port web 8080 || true
+            docker compose --file deploy/staging/compose.yaml logs --no-color
+            docker inspect "$(docker compose --file deploy/staging/compose.yaml ps --quiet web)" --format '{{json .NetworkSettings.Ports}}' || true
+            ss -lnt '( sport = :18080 )' || true
+            exit 1
+          fi
       - name: Stop staging stack
         if: always()
         run: docker compose --file deploy/staging/compose.yaml down --volumes --remove-orphans
