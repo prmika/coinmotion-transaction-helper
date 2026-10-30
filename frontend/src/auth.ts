@@ -89,6 +89,10 @@ export function getAccessToken(): string | null {
   return token && token.expiresAt > Date.now() ? token.value : null;
 }
 
+export function getTokenExpiresAt(): number | null {
+  return token?.expiresAt ?? null;
+}
+
 export async function logout(): Promise<void> {
   const oidc = await getConfiguration().catch(() => null);
   token = null;

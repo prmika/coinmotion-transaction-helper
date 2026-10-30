@@ -36,14 +36,7 @@ npm run build
 
 ## Local development
 
-```powershell
-# Terminal 1 - API, reachable from other computers
-cd backend
-$env:ASPNETCORE_URLS = "http://0.0.0.0:8000"
-dotnet run --project src/CryptoTaxHelper.Api
-
-# Terminal 2 - Frontend, reachable from other computers
-Start the API and frontend in separate terminals. Set the API URL explicitly because the frontend defaults to port 8000:
+Start the API and frontend in separate terminals. Set the API URL explicitly because the frontend defaults to port 8000.
 
 ```bash
 # Terminal 1
@@ -55,12 +48,21 @@ cd frontend
 npm run dev -- --host 0.0.0.0
 ```
 
-Open `http://localhost:5173` on the server or `http://192.168.0.120:5173` from another computer.
+Windows PowerShell equivalent for the API URL:
+
+```powershell
+# Terminal 1 - API, reachable from other computers
+cd backend
+$env:ASPNETCORE_URLS = "http://0.0.0.0:8000"
+dotnet run --project src/CryptoTaxHelper.Api
+```
+
+Open `http://localhost:5173` on the server or `http://<server-lan-ip>:5173` from another computer.
 
 For LAN testing, set `frontend/.env.local` (never commit it):
 
 ```text
-VITE_API_URL=http://192.168.0.120:8000
+VITE_API_URL=http://<server-lan-ip>:8000
 VITE_OIDC_AUTHORITY=https://your-issuer.example.com
 VITE_OIDC_CLIENT_ID=your-public-spa-client-id
 VITE_OIDC_AUDIENCE=your-api-audience
@@ -78,18 +80,11 @@ Authentication__Authority=https://your-issuer.example.com
 Authentication__Audience=your-api-audience
 Authentication__RequiredScope=tax-helper.reports
 Cors__AllowedOrigins__0=http://localhost:5173
-Cors__AllowedOrigins__1=http://192.168.0.120:5173
+Cors__AllowedOrigins__1=http://<server-lan-ip>:5173
 ```
 
 The SPA uses Authorization Code with PKCE and keeps access tokens in memory. Its public OIDC settings are configured with `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, and optional `VITE_OIDC_SCOPE`; never put a client secret in `VITE_*` variables. The provider must allow the exact redirect URI `http://localhost:5173/` (or the deployed SPA origin). Both report endpoints require the configured scope; reports are owner-scoped and expire after 30 minutes.
 Open the Vite URL shown in the terminal, normally <http://localhost:5173>. For another API address, create a local frontend `.env` (not committed) with `VITE_API_URL=http://localhost:<port>`.
-
-Windows PowerShell equivalent for the API URL:
-
-```powershell
-$env:ASPNETCORE_URLS = "http://localhost:8000"
-dotnet run --project src/CryptoTaxHelper.Api
-```
 
 ## API
 

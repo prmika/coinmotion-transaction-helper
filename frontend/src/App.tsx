@@ -3,7 +3,7 @@ import "./App.css";
 import BrokerModal from "./components/BrokerModal";
 import { translations, type Language } from "./i18n";
 import { BROKERS, type BrokerId } from "./config/brokerConfigs";
-import { beginLogin, completeLogin, getAccessToken, isOidcConfigured, logout } from "./auth";
+import { beginLogin, completeLogin, getAccessToken, getTokenExpiresAt, isOidcConfigured, logout } from "./auth";
 
 function App() {
   const [activeBrokerId, setActiveBrokerId] = useState<BrokerId | null>(null);
@@ -17,8 +17,10 @@ function App() {
 
   useEffect(() => {
     if (!accessToken) return;
-    const timer = window.setInterval(() => setAccessToken(getAccessToken()), 1000);
-    return () => window.clearInterval(timer);
+    const expiresAt = getTokenExpiresAt();
+    if (expiresAt === null) return;
+    const timer = window.setTimeout(() => setAccessToken(getAccessToken()), Math.max(0, expiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
   }, [accessToken]);
 
   const apiBaseUrl = useMemo(() => {
