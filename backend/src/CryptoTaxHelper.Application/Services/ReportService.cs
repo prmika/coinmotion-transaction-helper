@@ -7,6 +7,7 @@ namespace CryptoTaxHelper.Application.Services;
 
 public class ReportService
 {
+    private const decimal NumericTolerance = 0.0000000000001m;
     private readonly IEnumerable<IBrokerFileParser> _parsers;
     private readonly IReportGenerator _reportGenerator;
     private readonly IReportStore _reportStore;
@@ -32,7 +33,21 @@ public class ReportService
         if (transactions.Count == 0)
             return new TaxReport { Currencies = new Dictionary<string, CurrencyReport>() };
 
+        foreach (var tx in transactions)
+            ValidateFinancialInputs(tx);
+
         var brokerName = transactions[0].Source;
+        var deficits = ReconcileInventory(transactions);
+        if (deficits.Count > 0)
+        {
+            return new TaxReport
+            {
+                Currencies = new Dictionary<string, CurrencyReport>(),
+                BrokerName = brokerName,
+                ValidationStatus = "blocked",
+                InventoryDeficits = deficits
+            };
+        }
         var grouped = GroupByCurrency(transactions);
         var result = new Dictionary<string, CurrencyReport>();
 
@@ -72,6 +87,53 @@ public class ReportService
         }
 
         return new TaxReport { Currencies = result, BrokerName = brokerName };
+    }
+
+    private static List<InventoryDeficit> ReconcileInventory(IReadOnlyList<NormalizedTransaction> transactions)
+    {
+        var available = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var deficits = new List<InventoryDeficit>();
+
+        foreach (var tx in transactions.OrderBy(t => t.Time).ThenBy(t => t.SourceRow ?? int.MaxValue))
+        {
+            var asset = tx.Type == TransactionType.Sell ? tx.FromCurrency : tx.ToCurrency;
+            if (asset == "EUR" || tx.CryptoAmount <= 0) continue;
+            var quantity = ToDecimal(tx.SourceCryptoAmount, tx.CryptoAmount);
+            available.TryGetValue(asset, out var held);
+
+            if (tx.Type == TransactionType.Buy)
+            {
+                available[asset] = held + quantity;
+                continue;
+            }
+            if (tx.Type != TransactionType.Sell) continue;
+
+            var difference = quantity - held;
+            if (difference > NumericTolerance)
+            {
+                deficits.Add(new InventoryDeficit
+                {
+                    Asset = asset,
+                    AvailableQuantity = held,
+                    RequestedQuantity = quantity,
+                    Difference = difference,
+                    SourceRow = tx.SourceRow,
+                    SourceTime = tx.Time
+                });
+                continue;
+            }
+            available[asset] = difference >= 0 ? 0 : held - quantity;
+        }
+        return deficits;
+    }
+
+    private static decimal ToDecimal(string? sourceValue, double value)
+    {
+        if (!string.IsNullOrWhiteSpace(sourceValue) && decimal.TryParse(
+                sourceValue, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+        return Convert.ToDecimal(value);
     }
 
     public static PricingMetrics CalculateMetrics(TaxReport report)

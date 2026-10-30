@@ -36,6 +36,19 @@ public static class ReportEndpoints
 
             var report = ReportService.ProcessTransactions(transactions);
 
+            if (report.InventoryDeficits.Count > 0)
+            {
+                return Results.UnprocessableEntity(new
+                {
+                    code = "inventory_reconciliation_failed",
+                    status = report.ValidationStatus,
+                    detail = "Inventory reconciliation failed. The imported data does not contain enough crypto quantity for one or more sales.",
+                    message_fi = "Tietomäärän täsmäytys ei täsmää. Tarkista alkuperäinen Coinmotion-vienti ja muut lompakot tai pörssit. Älä lisää keinotekoista nollariviä.",
+                    message_en = "Inventory reconciliation failed. Check the original Coinmotion export and other wallets or exchanges. Do not add an artificial zero-cost row.",
+                    deficits = report.InventoryDeficits
+                });
+            }
+
             if (year.HasValue)
             {
                 report = ReportService.FilterByYear(report, year.Value);
