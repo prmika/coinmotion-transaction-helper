@@ -1,23 +1,31 @@
 using CryptoTaxHelper.Application.Services;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CryptoTaxHelper.Api.Endpoints;
 
 public static class ReportEndpoints
 {
+    private const string ReportProcessingError = "Unable to process the uploaded file.";
     public static void MapReportEndpoints(this WebApplication app)
     {
         app.MapPost("/report/generate", GenerateReport)
+            .RequireAuthorization("Reports")
             .DisableAntiforgery();
 
-        app.MapGet("/report/download/{reportId}", DownloadReport);
+        app.MapGet("/report/download/{reportId}", DownloadReport)
+            .RequireAuthorization("Reports");
     }
 
     private static async Task<IResult> GenerateReport(
         IFormFile file,
         int? year,
         ReportService reportService,
+        [FromServices] ILoggerFactory loggerFactory,
+        ClaimsPrincipal user,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("ReportEndpoints");
         if (file is null || !file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             return Results.BadRequest(new { detail = "Upload a .csv file" });
 
@@ -44,7 +52,9 @@ public static class ReportEndpoints
             }
 
             var metrics = ReportService.CalculateMetrics(report);
-            var reportId = await reportService.GenerateAndStoreReportAsync(report, ct);
+            var ownerId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(ownerId)) return Results.Forbid();
+            var reportId = await reportService.GenerateAndStoreReportAsync(report, ownerId, ct);
 
             return Results.Ok(new
             {
@@ -59,21 +69,23 @@ public static class ReportEndpoints
         }
         catch (FormatException ex)
         {
-            return Results.BadRequest(new { detail = ex.Message });
+            logger.LogWarning(ex, "The uploaded report file could not be parsed.");
+            return Results.BadRequest(new { detail = ReportProcessingError });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Results.BadRequest(new { detail = ex.Message });
+            logger.LogError(ex, "Report generation failed.");
+            return Results.BadRequest(new { detail = ReportProcessingError });
         }
     }
 
-    private static IResult DownloadReport(string reportId, ReportService reportService)
+    private static IResult DownloadReport(string reportId, ReportService reportService, ClaimsPrincipal user)
     {
-        var data = reportService.RetrieveReport(reportId);
+        var ownerId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Forbid();
+        var data = reportService.ConsumeReport(reportId, ownerId);
         if (data is null)
             return Results.NotFound(new { detail = "Report not found or has expired" });
-
-        reportService.RemoveReport(reportId);
 
         return Results.File(data, "application/zip", "pdf_reports.zip");
     }

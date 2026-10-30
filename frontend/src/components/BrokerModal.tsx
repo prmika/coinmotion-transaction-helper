@@ -18,6 +18,7 @@ type BrokerModalProps = {
   onClose: () => void;
   language: Language;
   brokerConfig: BrokerConfig | null;
+  accessToken: string | null;
 };
 
 function BrokerModal({
@@ -26,6 +27,7 @@ function BrokerModal({
   onClose,
   language,
   brokerConfig,
+  accessToken,
 }: BrokerModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -115,6 +117,7 @@ function BrokerModal({
 
       const response = await fetch(url.toString(), {
         method: "POST",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: formData,
       });
 
@@ -145,7 +148,9 @@ function BrokerModal({
     if (!downloadUrl) return;
     try {
       setErrorMessage(null);
-      const response = await fetch(downloadUrl);
+      const response = await fetch(downloadUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.detail || t.errors.downloadExpired);
