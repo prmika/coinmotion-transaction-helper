@@ -61,7 +61,12 @@ function BrokerModal({
       ]
     : null;
 
-  useEffect(() => {
+  // Reset modal state when it closes. Adjusting state during render (instead of
+  // in an effect) avoids a cascading extra render; the downloadUrl cleanup effect
+  // below revokes the object URL when it is cleared.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
     if (!isOpen) {
       setFile(null);
       setStatus("idle");
@@ -71,12 +76,9 @@ function BrokerModal({
       setSelectedYear((new Date().getFullYear() - 1).toString());
       setIsPreviewOpen(false);
       setPricingMetrics(null);
-      if (downloadUrl) {
-        URL.revokeObjectURL(downloadUrl);
-        setDownloadUrl(null);
-      }
+      setDownloadUrl(null);
     }
-  }, [isOpen, downloadUrl]);
+  }
 
   useEffect(() => {
     return () => {

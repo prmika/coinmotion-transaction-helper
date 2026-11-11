@@ -74,7 +74,11 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        # Browser only: no --with-deps. The apt step reaches Ubuntu mirrors, which
+        # were unresolvable on the hosted runner (run 43058750334 failed for 20 min).
+        # Playwright downloads the browser from its own CDN.
+        timeout-minutes: 10
+        run: npx playwright install chromium
       - name: Run e2e tests
         working-directory: frontend
         run: npm run test:e2e
