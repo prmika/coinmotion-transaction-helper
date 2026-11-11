@@ -74,15 +74,11 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         working-directory: frontend
-        # --with-deps apt-installs system fonts from Ubuntu mirrors, which can fail
-        # transiently on hosted runners (DNS/network), so retry before failing.
-        run: |
-          for attempt in 1 2 3; do
-            npx playwright install --with-deps chromium && exit 0
-            echo "Playwright install attempt $attempt failed; retrying in 30s"
-            sleep 30
-          done
-          exit 1
+        # Browser only: no --with-deps. The apt step reaches Ubuntu mirrors, which
+        # were unresolvable on the hosted runner (run 43058750334 failed for 20 min).
+        # Playwright downloads the browser from its own CDN.
+        timeout-minutes: 10
+        run: npx playwright install chromium
       - name: Run e2e tests
         working-directory: frontend
         run: npm run test:e2e
