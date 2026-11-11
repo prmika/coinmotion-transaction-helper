@@ -12,7 +12,7 @@ Crypto tax-reporting tool: upload a supported broker CSV, calculate FIFO cost ba
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Node.js 20+ and npm
+- Node.js 24+ and npm
 
 The backend targets `net10.0`; install a matching SDK before running backend commands. The frontend is independently buildable with Node/npm.
 
