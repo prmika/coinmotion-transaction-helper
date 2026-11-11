@@ -20,6 +20,8 @@ const redirectUri = `${window.location.origin}${window.location.pathname}`;
 
 let configuration: OidcConfiguration | null = null;
 let token: { value: string; expiresAt: number } | null = null;
+let idToken: string | null = null;
+let loginCompletion: Promise<boolean> | null = null;
 
 function base64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -60,7 +62,16 @@ export async function beginLogin(): Promise<void> {
   window.location.assign(`${oidc.authorization_endpoint}?${params}`);
 }
 
-export async function completeLogin(): Promise<boolean> {
+export function completeLogin(): Promise<boolean> {
+  if (!loginCompletion) {
+    loginCompletion = completeLoginOnce().finally(() => {
+      loginCompletion = null;
+    });
+  }
+  return loginCompletion;
+}
+
+async function completeLoginOnce(): Promise<boolean> {
   const params = new URLSearchParams(window.location.search);
   const providerError = params.get("error");
   if (providerError) {
@@ -81,6 +92,7 @@ export async function completeLogin(): Promise<boolean> {
   if (!response.ok) throw new Error("Unable to exchange OIDC authorization code");
   const data = (await response.json()) as TokenResponse;
   token = { value: data.access_token, expiresAt: Date.now() + (data.expires_in ?? 300) * 1000 };
+  idToken = data.id_token ?? null;
   window.history.replaceState({}, document.title, window.location.pathname);
   return true;
 }
@@ -95,9 +107,15 @@ export function getTokenExpiresAt(): number | null {
 
 export async function logout(): Promise<void> {
   const oidc = await getConfiguration().catch(() => null);
+  const currentIdToken = idToken;
   token = null;
+  idToken = null;
   if (oidc?.end_session_endpoint) {
-    const params = new URLSearchParams({ post_logout_redirect_uri: redirectUri });
+    const params = new URLSearchParams({
+      client_id: clientId!,
+      post_logout_redirect_uri: redirectUri,
+    });
+    if (currentIdToken) params.set("id_token_hint", currentIdToken);
     window.location.assign(`${oidc.end_session_endpoint}?${params}`);
   }
 }
