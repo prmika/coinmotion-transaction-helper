@@ -12,7 +12,7 @@ Crypto tax-reporting tool: upload a supported broker CSV, calculate FIFO cost ba
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- Node.js 20+ and npm
+- Node.js 24+ and npm
 
 The backend targets `net10.0`; install a matching SDK before running backend commands. The frontend is independently buildable with Node/npm.
 
@@ -31,6 +31,8 @@ npm ci
 npm run lint
 npm run build
 ```
+
+The same backend test and frontend lint/build checks run in `.github/workflows/ci.yml` on pull requests targeting `main` and pushes to `main`.
 
 `npm ci` may report vulnerabilities in development dependencies. Review `npm audit` output before upgrading dependencies; do not apply automatic fixes without checking the resulting lockfile and build.
 
@@ -93,6 +95,12 @@ Open the Vite URL shown in the terminal, normally <http://localhost:5173>. For a
 | `POST` | `/report/generate?year=2024` | Multipart upload with a `file` field. The file name must end in `.csv`. Returns `report_id` and pricing metrics. `year` is optional. |
 | `GET` | `/report/download/{reportId}` | Returns `pdf_reports.zip` once. The in-memory report is removed after retrieval. |
 
+### Coinmotion quantity reconciliation
+
+The Coinmotion import preserves the CSV quantity text and source row number. Before FIFO processing, each asset is reconciled using a technical numeric tolerance of `1e-13` crypto units only. A positive deficit above that tolerance returns HTTP 422 with exact available, requested, difference, source row, and timestamp details; no balancing or zero-cost transaction is synthesized, and no report is stored. This tolerance is an implementation policy, not a tax or Vero threshold.
+
+Before uploading, provide the complete export, including purchases, sales, transfers, and fees, and relevant activity from other wallets or exchanges. A reconciliation failure must be investigated before filing; the application does not determine whether a difference is tax-relevant.
+
 The API currently permits the local frontend origin `http://localhost:5173` through CORS. It has no authentication, persistent storage, configured upload limit, or production deployment manifest; do not expose it publicly without addressing those concerns.
 
 ## Project structure
@@ -126,4 +134,4 @@ frontend/
 
 Uploaded CSVs contain financial information. Do not commit real exports, include them in logs or bug reports, or send them to external services. Generated reports currently exist in server memory until downloaded; production work must define authentication, retention, isolation, HTTPS, rate/size limits, and secret handling before deployment.
 
-See [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the inspection findings and prioritized roadmap. Agent-specific repository rules are in [`AGENTS.md`](AGENTS.md).
+See [`DEVELOPMENT_PLAN.md`](DEVELOPMENT_PLAN.md) for the inspection findings and prioritized roadmap. See [`AGENTIC_CODING_PLAN.md`](AGENTIC_CODING_PLAN.md) for the story-to-verified-code workflow and proposed home-server staging design. Repository-specific agent guidance is in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
