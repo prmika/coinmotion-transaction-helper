@@ -3,23 +3,39 @@ import "./App.css";
 import BrokerModal from "./components/BrokerModal";
 import { translations, type Language } from "./i18n";
 import { BROKERS, type BrokerId } from "./config/brokerConfigs";
-import { beginLogin, completeLogin, getAccessToken, getTokenExpiresAt, isOidcConfigured, logout } from "./auth";
+import {
+  beginLogin,
+  completeLogin,
+  getAccessToken,
+  getTokenExpiresAt,
+  isOidcConfigured,
+  logout,
+} from "./auth";
 
 function App() {
   const [activeBrokerId, setActiveBrokerId] = useState<BrokerId | null>(null);
   const [language, setLanguage] = useState<Language>("fi");
-  const [accessToken, setAccessToken] = useState<string | null>(getAccessToken());
+  const [accessToken, setAccessToken] = useState<string | null>(
+    getAccessToken(),
+  );
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    completeLogin().then((completed) => completed && setAccessToken(getAccessToken())).catch((error: unknown) => setAuthError(error instanceof Error ? error.message : "Login failed"));
+    completeLogin()
+      .then((completed) => completed && setAccessToken(getAccessToken()))
+      .catch((error: unknown) =>
+        setAuthError(error instanceof Error ? error.message : "Login failed"),
+      );
   }, []);
 
   useEffect(() => {
     if (!accessToken) return;
     const expiresAt = getTokenExpiresAt();
     if (expiresAt === null) return;
-    const timer = window.setTimeout(() => setAccessToken(getAccessToken()), Math.max(0, expiresAt - Date.now()));
+    const timer = window.setTimeout(
+      () => setAccessToken(getAccessToken()),
+      Math.max(0, expiresAt - Date.now()),
+    );
     return () => window.clearTimeout(timer);
   }, [accessToken]);
 
@@ -34,21 +50,32 @@ function App() {
   const oidcConfigured = isOidcConfigured();
 
   const handleLogin = async () => {
-    try { setAuthError(null); await beginLogin(); } catch (error) { setAuthError(error instanceof Error ? error.message : "Login failed"); }
+    try {
+      setAuthError(null);
+      await beginLogin();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Login failed");
+    }
   };
 
   return (
     <div className="app">
       <header className="app__header">
         <div className="app__brand">
-          <span className="app__brand-mark" aria-hidden="true">CT</span>
+          <span className="app__brand-mark" aria-hidden="true">
+            CT
+          </span>
           <div>
             <p className="app__eyebrow">{t.app.brandEyebrow}</p>
             <h1>{t.app.title}</h1>
           </div>
         </div>
         <div className="app__header-actions">
-          <div className="language-toggle" role="group" aria-label={t.app.languageLabel}>
+          <div
+            className="language-toggle"
+            role="group"
+            aria-label={t.app.languageLabel}
+          >
             <button
               type="button"
               className={language === "fi" ? "active" : ""}
@@ -69,13 +96,18 @@ function App() {
           {accessToken ? (
             <details className="account-menu">
               <summary className="account-menu__trigger">
-                <span className="account-menu__avatar" aria-hidden="true">U</span>
+                <span className="account-menu__avatar" aria-hidden="true">
+                  U
+                </span>
                 <span>{t.app.accountLabel}</span>
                 <span className="account-menu__caret" aria-hidden="true" />
               </summary>
               <div className="account-menu__panel">
                 <p className="account-menu__status">
-                  <span className="account-menu__status-dot" aria-hidden="true" />
+                  <span
+                    className="account-menu__status-dot"
+                    aria-hidden="true"
+                  />
                   {t.app.signedIn}
                 </p>
                 <button
@@ -88,14 +120,22 @@ function App() {
               </div>
             </details>
           ) : oidcConfigured ? (
-            <button type="button" className="header-login" onClick={() => void handleLogin()}>
+            <button
+              type="button"
+              className="header-login"
+              onClick={() => void handleLogin()}
+            >
               {t.app.logIn}
             </button>
           ) : null}
         </div>
       </header>
 
-      {authError && <p className="app__auth-error" role="alert">{authError}</p>}
+      {authError && (
+        <p className="app__auth-error" role="alert">
+          {authError}
+        </p>
+      )}
 
       {accessToken ? (
         <main className="app__main app__main--dashboard">
@@ -156,7 +196,11 @@ function App() {
                   {t.app.logIn}
                   <span aria-hidden="true">-&gt;</span>
                 </button>
-                {!oidcConfigured && <p className="welcome__config-note">{t.app.oidcNotConfigured}</p>}
+                {!oidcConfigured && (
+                  <p className="welcome__config-note">
+                    {t.app.oidcNotConfigured}
+                  </p>
+                )}
               </div>
             </div>
             <div className="welcome__details">
@@ -176,7 +220,9 @@ function App() {
                     .map((broker) => (
                       <li key={broker.id}>
                         <span>{broker.name}</span>
-                        <span className="broker-tag broker-tag--active">{t.app.available}</span>
+                        <span className="broker-tag broker-tag--active">
+                          {t.app.available}
+                        </span>
                       </li>
                     ))}
                 </ul>

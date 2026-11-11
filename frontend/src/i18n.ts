@@ -114,7 +114,8 @@ export const translations = {
       welcomeTitle: "Make crypto tax reporting clearer.",
       welcomeDescription:
         "Turn transaction exports from supported brokers into capital gains calculations by currency. Review the report before using the figures in your tax return.",
-      welcomeFootnote: "Reports are informational and do not replace tax advice.",
+      welcomeFootnote:
+        "Reports are informational and do not replace tax advice.",
       oidcNotConfigured:
         "Sign-in is unavailable. The service administrator must configure OIDC.",
       dashboardEyebrow: "YOUR WORKSPACE",
