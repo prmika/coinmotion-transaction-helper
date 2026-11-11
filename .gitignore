@@ -166,3 +166,5 @@ cython_debug/
 input/
 # output folder
 output/
+# git worktrees
+.worktrees/
