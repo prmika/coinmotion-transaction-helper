@@ -74,7 +74,15 @@ jobs:
         run: npm ci
       - name: Install Playwright Chromium
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        # --with-deps apt-installs system fonts from Ubuntu mirrors, which can fail
+        # transiently on hosted runners (DNS/network), so retry before failing.
+        run: |
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Playwright install attempt $attempt failed; retrying in 30s"
+            sleep 30
+          done
+          exit 1
       - name: Run e2e tests
         working-directory: frontend
         run: npm run test:e2e
