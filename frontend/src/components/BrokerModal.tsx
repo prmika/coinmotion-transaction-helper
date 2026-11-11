@@ -27,6 +27,7 @@ type BrokerModalProps = {
   onClose: () => void;
   language: Language;
   brokerConfig: BrokerConfig | null;
+  accessToken: string | null;
 };
 
 function BrokerModal({
@@ -35,6 +36,7 @@ function BrokerModal({
   onClose,
   language,
   brokerConfig,
+  accessToken,
 }: BrokerModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
@@ -49,6 +51,8 @@ function BrokerModal({
   const [pricingMetrics, setPricingMetrics] = useState<PricingMetrics | null>(
     null,
   );
+  const currentYear = new Date().getFullYear();
+  const minimumYear = 2009;
 
   const t = translations[language].brokerModal;
   const brokerTranslation = brokerConfig
@@ -126,6 +130,7 @@ function BrokerModal({
 
       const response = await fetch(url.toString(), {
         method: "POST",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: formData,
       });
 
@@ -163,7 +168,9 @@ function BrokerModal({
     if (!downloadUrl) return;
     try {
       setErrorMessage(null);
-      const response = await fetch(downloadUrl);
+      const response = await fetch(downloadUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.detail || t.errors.downloadExpired);
@@ -305,18 +312,41 @@ function BrokerModal({
             </div>
             <form className="upload" onSubmit={handleSubmit}>
               {brokerConfig.hasYearSelection && (
-                <label className="field-row">
-                  <span>{t.yearLabel}</span>
-                  <input
-                    type="number"
-                    min="2009"
-                    max="2100"
-                    placeholder="2025"
-                    value={selectedYear}
-                    onChange={(event) => setSelectedYear(event.target.value)}
-                  />
+                <div className="field-row">
+                  <span id="report-year-label">{t.yearLabel}</span>
+                  <div className="year-picker" role="group" aria-labelledby="report-year-label">
+                    <button
+                      type="button"
+                      className="year-picker__step"
+                      aria-label={t.previousYear}
+                      disabled={!selectedYear || Number(selectedYear) <= minimumYear}
+                      onClick={() => setSelectedYear(String(Number(selectedYear) - 1))}
+                    >
+                      -
+                    </button>
+                    <output className="year-picker__value" aria-live="polite">
+                      {selectedYear || t.allYears}
+                    </output>
+                    <button
+                      type="button"
+                      className="year-picker__step"
+                      aria-label={t.nextYear}
+                      disabled={!selectedYear || Number(selectedYear) >= currentYear}
+                      onClick={() => setSelectedYear(String(Number(selectedYear) + 1))}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <label className="year-picker__all">
+                    <input
+                      type="checkbox"
+                      checked={!selectedYear}
+                      onChange={(event) => setSelectedYear(event.target.checked ? "" : String(currentYear - 1))}
+                    />
+                    <span>{t.allYears}</span>
+                  </label>
                   <span className="muted">{t.yearHint}</span>
-                </label>
+                </div>
               )}
               <label className="file-input">
                 <input
