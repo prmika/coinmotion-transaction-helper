@@ -10,7 +10,7 @@ namespace CryptoTaxHelper.Infrastructure.Reports;
 public class PdfReportGenerator : IReportGenerator
 {
     private const string DisclaimerFiTemplate =
-        "Tämä raportti on automaattisesti muodostettu {0}n toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella.\n\n" +
+        "Tämä raportti on automaattisesti muodostettu {0} toimittamien transaktiotietojen sekä käyttäjän antamien lähtötietojen perusteella.\n\n" +
         "Raportti on suuntaa-antava eikä ole veroneuvontaa. Palvelu ei takaa raportin tietojen täydellisyyttä, oikeellisuutta tai soveltuvuutta käyttäjän yksittäiseen verotustilanteeseen. Käyttäjä vastaa itse tietojen oikeellisuudesta ja veroilmoitukselle ilmoitettavista luvuista.\n\n" +
         "Raportti ei välttämättä huomioi oikein tai kattavasti kaikkia seuraavia tapahtumia:\n" +
         "• lompakkojen välisiä siirtoja\n" +
@@ -90,6 +90,9 @@ public class PdfReportGenerator : IReportGenerator
             {
                 page.Size(PageSizes.A4.Landscape());
                 page.Margin(30);
+                // Standard ligatures (e.g. "ti", "tt") drop text from the PDF text layer, so copy,
+                // search and screen readers lose Finnish/English words. Keep letters as plain glyphs.
+                page.DefaultTextStyle(x => x.DisableFontFeature("liga"));
 
                 page.Header().Column(header =>
                 {
@@ -203,7 +206,7 @@ public class PdfReportGenerator : IReportGenerator
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossSellVolume:F2}").FontSize(8);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossBuyVolume:F2}").FontSize(8);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"{summary.LossFees:F2}").FontSize(8);
-                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text($"-{summary.Losses:F2}").FontSize(8);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(PdfNumberFormatter.Money(-summary.Losses)).FontSize(8);
                         }
                     });
 
@@ -239,15 +242,15 @@ public class PdfReportGenerator : IReportGenerator
                         {
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.Time.ToString("dd.MM.yyyy HH:mm:ss")).FontSize(7);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.Type.ToString()).FontSize(7);
-                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text($"{tx.CryptoAmount:G}").FontSize(7);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(PdfNumberFormatter.Crypto(tx.CryptoAmount)).FontSize(7);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text($"{tx.EurAmount:F2}").FontSize(7);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.CostBasisUsed.HasValue ? $"{tx.CostBasisUsed:F2}" : "-").FontSize(7);
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.CostBasisMethod ?? "-").FontSize(7);
-                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.ProfitLoss.HasValue ? $"{tx.ProfitLoss:F2}" : "-").FontSize(7);
-                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.RemainingQuantity.HasValue ? $"{tx.RemainingQuantity:G}" : "-").FontSize(7);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.ProfitLoss.HasValue ? PdfNumberFormatter.Money(tx.ProfitLoss.Value) : "-").FontSize(7);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(2).Text(tx.RemainingQuantity.HasValue ? PdfNumberFormatter.Crypto(tx.RemainingQuantity.Value) : "-").FontSize(7);
                         }
                     });
-                    col.Item().Text("** Voitto/tappio on laskettu Amount € - Cost Basis Used - Selling fee €. / Profit/loss is calculated as Amount € - Cost Basis Used - Selling fee €.").FontSize(7).Italic();
+                    col.Item().Text("** Voitto/tappio on laskettu: Euro määrä - Käytetty hankintameno - Myyntikulu. / Profit/loss is calculated as Amount € - Cost Basis Used - Selling fee €.").FontSize(7).Italic();
 
                     // Disclaimers
                     col.Item().PaddingTop(20).Text("Disclaimer").FontSize(14).Bold();

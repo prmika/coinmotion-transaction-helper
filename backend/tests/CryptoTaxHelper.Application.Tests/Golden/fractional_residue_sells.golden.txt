@@ -1,0 +1,7 @@
+status=complete
+broker=Coinmotion Oy
+currency=BTC
+year=2023 wins=0.04 losses=0.00 total=0.04 buyVol=3.00 sellVol=3.04 profSell=3.04 profBuy=3.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+tx 2023-01-01T10:00:00+02:00 Buy amt=0.30000000 eur=3.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=0.00
+tx 2023-02-01T10:00:00+02:00 Sell amt=0.10000000 eur=1.01 cb=1.00 assumed=0.20 cbUsed=1.00 method=fifo pl=0.01 rem=0.20000000 fee=0.00
+tx 2023-03-01T10:00:00+02:00 Sell amt=0.20000000 eur=2.03 cb=2.00 assumed=0.41 cbUsed=2.00 method=fifo pl=0.03 rem=0.00000000 fee=0.00

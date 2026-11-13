@@ -98,7 +98,7 @@ public class ReportService
         {
             var asset = tx.Type == TransactionType.Sell ? tx.FromCurrency : tx.ToCurrency;
             if (asset == "EUR" || tx.CryptoAmount <= 0) continue;
-            var quantity = ToDecimal(tx.SourceCryptoAmount, tx.CryptoAmount);
+            var quantity = tx.CryptoAmount;
             available.TryGetValue(asset, out var held);
 
             if (tx.Type == TransactionType.Buy)
@@ -127,20 +127,11 @@ public class ReportService
         return deficits;
     }
 
-    private static decimal ToDecimal(string? sourceValue, double value)
-    {
-        if (!string.IsNullOrWhiteSpace(sourceValue) && decimal.TryParse(
-                sourceValue, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-            return parsed;
-        return Convert.ToDecimal(value);
-    }
-
     public static PricingMetrics CalculateMetrics(TaxReport report)
     {
         var totalTransactions = 0;
-        var totalVolume = 0.0;
-        var totalProfit = 0.0;
+        var totalVolume = 0m;
+        var totalProfit = 0m;
 
         foreach (var (_, data) in report.Currencies)
         {
@@ -233,7 +224,7 @@ public class ReportService
     private static void HandleBuy(FifoQueue fifo, NormalizedTransaction tx)
     {
         if (tx.CryptoAmount <= 0) return;
-        var acquisitionCost = tx.FiatAmount + (tx.FeeCurrency == "EUR" ? tx.Fee : 0.0);
+        var acquisitionCost = tx.FiatAmount + (tx.FeeCurrency == "EUR" ? tx.Fee : 0m);
         var pricePerUnit = acquisitionCost / tx.CryptoAmount;
         fifo.AddPurchase(tx.CryptoAmount, pricePerUnit, tx.Time);
     }
@@ -245,12 +236,12 @@ public class ReportService
         if (tx.CryptoAmount <= 0) return [];
 
         var totalRevenue = tx.FiatAmount;
-        var feeEur = tx.FeeCurrency == "EUR" ? tx.Fee : 0.0;
+        var feeEur = tx.FeeCurrency == "EUR" ? tx.Fee : 0m;
 
         var result = fifo.CalculateCogs(tx.CryptoAmount, tx.Time, totalRevenue);
         var pricePerUnit = totalRevenue / tx.CryptoAmount;
         var remainingBefore = fifo.RemainingQuantity() + tx.CryptoAmount;
-        var cumulativeSold = 0.0;
+        var cumulativeSold = 0m;
         var splitTransactions = new List<ProcessedTransaction>();
 
         foreach (var lot in result.ConsumedLots)
@@ -264,7 +255,7 @@ public class ReportService
             var lotCostBasisUsed = Math.Max(lotCostBasis, lotAssumedCost);
             var lotMethod = lotAssumedCost > lotCostBasis ? "assumption" : "fifo";
 
-            var lotFee = 0.0;
+            var lotFee = 0m;
             if (feeEur > 0 && totalRevenue > 0)
                 lotFee = feeEur * (lotRevenue / totalRevenue);
 
@@ -281,21 +272,21 @@ public class ReportService
 
             if (lotProfitLoss > 0)
             {
-                years[txYear].Wins += (double)roundedProfitLoss;
-                years[txYear].ProfitSellVolume += (double)roundedRevenue;
-                years[txYear].ProfitBuyVolume += (double)roundedCostBasisUsed;
-                years[txYear].ProfitFees += (double)roundedFee;
+                years[txYear].Wins += roundedProfitLoss;
+                years[txYear].ProfitSellVolume += roundedRevenue;
+                years[txYear].ProfitBuyVolume += roundedCostBasisUsed;
+                years[txYear].ProfitFees += roundedFee;
             }
             else
             {
-                years[txYear].Losses += Math.Abs((double)roundedProfitLoss);
-                years[txYear].LossSellVolume += (double)roundedRevenue;
-                years[txYear].LossBuyVolume += (double)roundedCostBasisUsed;
-                years[txYear].LossFees += (double)roundedFee;
+                years[txYear].Losses += Math.Abs(roundedProfitLoss);
+                years[txYear].LossSellVolume += roundedRevenue;
+                years[txYear].LossBuyVolume += roundedCostBasisUsed;
+                years[txYear].LossFees += roundedFee;
             }
 
-            years[txYear].TotalBuyVolume += (double)roundedCostBasisUsed;
-            years[txYear].Total += (double)roundedProfitLoss;
+            years[txYear].TotalBuyVolume += roundedCostBasisUsed;
+            years[txYear].Total += roundedProfitLoss;
 
             splitTransactions.Add(new ProcessedTransaction
             {
@@ -304,16 +295,16 @@ public class ReportService
                 FromCurrency = tx.FromCurrency,
                 ToCurrency = tx.ToCurrency,
                 CryptoAmount = lot.Quantity,
-                EurAmount = (double)roundedRevenue,
+                EurAmount = roundedRevenue,
                 Rate = tx.Rate,
-                Fee = (double)roundedFee,
+                Fee = roundedFee,
                 FeeCurrency = tx.FeeCurrency,
                 Source = tx.Source,
-                CostBasis = (double)roundedCostBasis,
-                AssumedCost = (double)roundedAssumedCost,
-                CostBasisUsed = (double)roundedCostBasisUsed,
+                CostBasis = roundedCostBasis,
+                AssumedCost = roundedAssumedCost,
+                CostBasisUsed = roundedCostBasisUsed,
                 CostBasisMethod = lotMethod,
-                ProfitLoss = (double)roundedProfitLoss,
+                ProfitLoss = roundedProfitLoss,
                 RemainingQuantity = remainingAfter
             });
         }
@@ -321,18 +312,18 @@ public class ReportService
         return splitTransactions;
     }
 
-    private static decimal RoundMoney(double value) =>
-        decimal.Round(Convert.ToDecimal(value), 2, MidpointRounding.AwayFromZero);
+    private static decimal RoundMoney(decimal value) =>
+        Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
     private static void ValidateFinancialInputs(NormalizedTransaction tx)
     {
-        if (!double.IsFinite(tx.CryptoAmount) || tx.CryptoAmount < 0)
+        if (tx.CryptoAmount < 0)
             throw new ArgumentException("Crypto amount must be finite and non-negative", nameof(tx));
-        if (!double.IsFinite(tx.FiatAmount) || tx.FiatAmount < 0)
+        if (tx.FiatAmount < 0)
             throw new ArgumentException("Fiat amount must be finite and non-negative", nameof(tx));
-        if (!double.IsFinite(tx.Fee) || tx.Fee < 0)
+        if (tx.Fee < 0)
             throw new ArgumentException("Fee must be finite and non-negative", nameof(tx));
-        if (!double.IsFinite(tx.Rate) || tx.Rate < 0)
+        if (tx.Rate < 0)
             throw new ArgumentException("Rate must be finite and non-negative", nameof(tx));
     }
 

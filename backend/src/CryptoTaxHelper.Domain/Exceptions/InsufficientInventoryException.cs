@@ -2,7 +2,7 @@ namespace CryptoTaxHelper.Domain.Exceptions;
 
 public class InsufficientInventoryException : Exception
 {
-    public InsufficientInventoryException(string currency, double requested, double available)
+    public InsufficientInventoryException(string currency, decimal requested, decimal available)
         : base($"Not enough {currency} inventory to sell. Requested: {requested}, Available: {available}")
     {
         Currency = currency;
@@ -11,6 +11,6 @@ public class InsufficientInventoryException : Exception
     }
 
     public string Currency { get; }
-    public double Requested { get; }
-    public double Available { get; }
+    public decimal Requested { get; }
+    public decimal Available { get; }
 }
