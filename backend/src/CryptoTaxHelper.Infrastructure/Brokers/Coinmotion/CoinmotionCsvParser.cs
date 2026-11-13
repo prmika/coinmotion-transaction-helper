@@ -40,11 +40,11 @@ public class CoinmotionCsvParser : IBrokerFileParser
                 var fromCurrency = GetField(fields, headerIndex, "fromCurrency").Trim().ToUpperInvariant();
                 var toCurrency = GetField(fields, headerIndex, "toCurrency").Trim().ToUpperInvariant();
                 var type = GetField(fields, headerIndex, "type").Trim().ToLowerInvariant();
-                var eurAmount = ParseDouble(GetField(fields, headerIndex, "eurAmount"));
+                var eurAmount = ParseDecimal(GetField(fields, headerIndex, "eurAmount"));
                 var rawCryptoAmount = GetField(fields, headerIndex, "cryptoAmount").Trim();
-                var cryptoAmount = ParseDouble(rawCryptoAmount);
-                var rate = ParseDouble(GetField(fields, headerIndex, "rate"));
-                var fee = ParseDouble(GetField(fields, headerIndex, "fee"));
+                var cryptoAmount = ParseDecimal(rawCryptoAmount);
+                var rate = ParseDecimal(GetField(fields, headerIndex, "rate"));
+                var fee = ParseDecimal(GetField(fields, headerIndex, "fee"));
                 var feeCurrency = GetField(fields, headerIndex, "feeCurrency").Trim().ToUpperInvariant();
                 var time = DateTimeOffset.Parse(GetField(fields, headerIndex, "time"), CultureInfo.InvariantCulture);
 
@@ -130,11 +130,11 @@ public class CoinmotionCsvParser : IBrokerFileParser
         return fields[index];
     }
 
-    private static double ParseDouble(string value)
+    private static decimal ParseDecimal(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            return 0.0;
-        return double.Parse(value, CultureInfo.InvariantCulture);
+            return 0m;
+        return decimal.Parse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture);
     }
 
     private static string[] ParseCsvLine(string line)

@@ -1,0 +1,7 @@
+status=complete
+broker=Coinmotion Oy
+currency=BTC
+year=2010 wins=0.00 losses=0.00 total=0.00 buyVol=0.00 sellVol=0.00 profSell=0.00 profBuy=0.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+year=2024 wins=30000.00 losses=0.00 total=30000.00 buyVol=20000.00 sellVol=50000.00 profSell=50000.00 profBuy=20000.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+tx 2010-03-01T10:00:00+02:00 Buy amt=1.00000000 eur=100.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=0.00
+tx 2024-03-01T10:00:00+02:00 Sell amt=1.00000000 eur=50000.00 cb=100.00 assumed=20000.00 cbUsed=20000.00 method=assumption pl=30000.00 rem=0.00000000 fee=0.00

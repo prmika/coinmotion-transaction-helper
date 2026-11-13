@@ -9,14 +9,14 @@ public static class PdfNumberFormatter
 {
     private const int CryptoDecimals = 8;
 
-    public static string Crypto(double value)
+    public static string Crypto(decimal value)
     {
         var rounded = Math.Round(value, CryptoDecimals, MidpointRounding.AwayFromZero);
         if (rounded == 0) rounded = 0; // normalizes -0.0 and sub-precision residue to +0
         return rounded.ToString($"F{CryptoDecimals}");
     }
 
-    public static string Money(double value)
+    public static string Money(decimal value)
     {
         var rounded = Math.Round(value, 2, MidpointRounding.AwayFromZero);
         if (rounded == 0) rounded = 0;
