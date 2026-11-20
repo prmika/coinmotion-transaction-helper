@@ -8,14 +8,14 @@ public class InMemoryReportStore : IReportStore
     private readonly ConcurrentDictionary<string, ReportEntry> _store = new();
     private readonly TimeSpan _retention = TimeSpan.FromMinutes(30);
 
-    public string Store(byte[] reportData, string ownerId)
+    public string Store(byte[] reportData, string? ownerId)
     {
         var id = Guid.NewGuid().ToString();
         _store[id] = new ReportEntry(reportData, ownerId, DateTimeOffset.UtcNow.Add(_retention));
         return id;
     }
 
-    public byte[]? Consume(string reportId, string ownerId)
+    public byte[]? Consume(string reportId, string? ownerId)
     {
         if (!_store.TryGetValue(reportId, out var entry)) return null;
         if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
@@ -23,7 +23,8 @@ public class InMemoryReportStore : IReportStore
             RemoveEntry(reportId, entry);
             return null;
         }
-        if (entry.OwnerId != ownerId) return null;
+        // Owned reports need the matching owner; anonymous reports are reachable by their report ID (receipt code).
+        if (entry.OwnerId is not null && entry.OwnerId != ownerId) return null;
         return RemoveEntry(reportId, entry) ? entry.Data : null;
     }
 
@@ -31,5 +32,5 @@ public class InMemoryReportStore : IReportStore
         ((ICollection<KeyValuePair<string, ReportEntry>>)_store)
             .Remove(new KeyValuePair<string, ReportEntry>(reportId, entry));
 
-    private sealed record ReportEntry(byte[] Data, string OwnerId, DateTimeOffset ExpiresAt);
+    private sealed record ReportEntry(byte[] Data, string? OwnerId, DateTimeOffset ExpiresAt);
 }

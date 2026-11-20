@@ -144,42 +144,67 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Generate_WithoutAuthentication_Returns401()
+    public async Task Generate_WithoutAuthentication_ReturnsReport()
     {
-        using var unauthenticated = new WebApplicationFactory<Program>().CreateClient();
-        var response = await unauthenticated.PostAsync("/report/generate", new MultipartFormDataContent());
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var anonymous = _factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        using var content = CsvContent(SampleCsv);
+
+        var response = await anonymous.PostAsync("/report/generate", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        JsonDocument.Parse(await response.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("report_id").GetString().Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public async Task Generate_WithInvalidBearerToken_Returns401()
+    public async Task Download_AnonymousReport_ByReportIdWithoutAuthentication_ReturnsZip()
     {
-        using var unauthenticated = new WebApplicationFactory<Program>().CreateClient();
-        unauthenticated.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", "not-a-valid-token");
+        using var anonymous = _factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        var reportId = await GenerateAndGetId(anonymous, SampleCsv);
 
-        var response = await unauthenticated.PostAsync("/report/generate", new MultipartFormDataContent());
+        var response = await anonymous.GetAsync($"/report/download/{reportId}");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task Download_ReportCreatedByAnotherUser_Returns404()
+    public async Task Download_ReportOwnedByAnotherUser_Returns404()
     {
-        using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(SampleCsv));
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
-        content.Add(fileContent, "file", "test.csv");
-
-        var generateResponse = await _client.PostAsync("/report/generate", content);
-        var reportId = JsonDocument.Parse(await generateResponse.Content.ReadAsStringAsync())
-            .RootElement.GetProperty("report_id").GetString();
+        var reportId = await GenerateAndGetId(_client, SampleCsv);
 
         using var otherUser = _factory.CreateClient();
         otherUser.DefaultRequestHeaders.Add("X-Test-User", "another-user");
         var downloadResponse = await otherUser.GetAsync($"/report/download/{reportId}");
 
         downloadResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Download_ReportOwnedByUser_ReturnsZipForOwner()
+    {
+        var reportId = await GenerateAndGetId(_client, SampleCsv);
+
+        var ownerResponse = await _client.GetAsync($"/report/download/{reportId}");
+        ownerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private static MultipartFormDataContent CsvContent(string csv)
+    {
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "test.csv");
+        return content;
+    }
+
+    private static async Task<string?> GenerateAndGetId(HttpClient client, string csv)
+    {
+        using var content = CsvContent(csv);
+        var response = await client.PostAsync("/report/generate", content);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("report_id").GetString();
     }
 
     [Fact]
@@ -209,6 +234,9 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
+            if (Request.Headers.ContainsKey("X-Test-Anonymous"))
+                return Task.FromResult(AuthenticateResult.NoResult());
+
             var identity = new ClaimsIdentity("Test");
             identity.AddClaim(new Claim("sub", Request.Headers["X-Test-User"].FirstOrDefault() ?? "test-user"));
             identity.AddClaim(new Claim("scope", "tax-helper.reports"));

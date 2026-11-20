@@ -9,12 +9,11 @@ public static class ReportEndpoints
     private const string ReportProcessingError = "Unable to process the uploaded file.";
     public static void MapReportEndpoints(this WebApplication app)
     {
+        // Anonymous use is allowed. Logged-in users become the report owner; anonymous reports are fetched by report ID.
         app.MapPost("/report/generate", GenerateReport)
-            .RequireAuthorization("Reports")
             .DisableAntiforgery();
 
-        app.MapGet("/report/download/{reportId}", DownloadReport)
-            .RequireAuthorization("Reports");
+        app.MapGet("/report/download/{reportId}", DownloadReport);
     }
 
     private static async Task<IResult> GenerateReport(
@@ -65,8 +64,7 @@ public static class ReportEndpoints
             }
 
             var metrics = ReportService.CalculateMetrics(report);
-            var ownerId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrWhiteSpace(ownerId)) return Results.Forbid();
+            var ownerId = OwnerIdOrNull(user);
             var reportId = await reportService.GenerateAndStoreReportAsync(report, ownerId, ct);
 
             return Results.Ok(new
@@ -94,12 +92,18 @@ public static class ReportEndpoints
 
     private static IResult DownloadReport(string reportId, ReportService reportService, ClaimsPrincipal user)
     {
-        var ownerId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(ownerId)) return Results.Forbid();
+        var ownerId = OwnerIdOrNull(user);
         var data = reportService.ConsumeReport(reportId, ownerId);
         if (data is null)
             return Results.NotFound(new { detail = "Report not found or has expired" });
 
         return Results.File(data, "application/zip", "pdf_reports.zip");
+    }
+
+    private static string? OwnerIdOrNull(ClaimsPrincipal user)
+    {
+        if (user.Identity?.IsAuthenticated != true) return null;
+        var ownerId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        return string.IsNullOrWhiteSpace(ownerId) ? null : ownerId;
     }
 }
