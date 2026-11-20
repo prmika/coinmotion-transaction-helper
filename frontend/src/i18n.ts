@@ -6,6 +6,23 @@ export const translations = {
       title: "Kryptoveroraportit",
       subtitle:
         "Luo luovutusvoittolaskelmat valitsemasi välittäjän tapahtumatiedoista.",
+      brandEyebrow: "RAPORTOINTITYÖKALU",
+      languageLabel: "Kieli",
+      accountLabel: "Tili",
+      signedIn: "Kirjautuneena",
+      logIn: "Kirjaudu sisään",
+      logOut: "Kirjaudu ulos",
+      welcomeEyebrow: "KRYPTOVAROJEN VERORAPORTOINTI",
+      welcomeTitle: "Selkeyttä kryptovarojen verotukseen.",
+      welcomeDescription:
+        "Muunna tuettujen välittäjien tapahtumatiedot valuuttakohtaisiksi luovutusvoittolaskelmiksi. Tarkista raportti ennen tietojen ilmoittamista.",
+      welcomeFootnote: "Raportti on suuntaa-antava eikä korvaa veroneuvontaa.",
+      oidcNotConfigured:
+        "Kirjautuminen ei ole käytössä. Palvelun ylläpitäjän tulee määrittää OIDC-asetukset.",
+      dashboardEyebrow: "OMA TYÖTILA",
+      dashboardTitle: "Luo veroraportti",
+      dashboardDescription:
+        "Valitse välittäjä ja lataa täydellinen tapahtumaraporttisi.",
       brokersTitle: "Välittäjät",
       coinmotionDescription: "CSV-tuonti",
       available: "Saatavilla",
@@ -26,7 +43,10 @@ export const translations = {
       completenessWarning:
         "Lataa täydellinen Coinmotion-vienti ajalta: ostot, myynnit, tilisiirrot ja kulut. Älä muokkaa määriä tai lisää tasapainottavia rivejä. Palvelu ei voi ratkaista, onko pieni ero verotuksessa merkityksetön.",
       yearLabel: "Raportin vuosi (valinnainen)",
-      yearHint: "Jätä tyhjiksi, jos haluat raportin kaikilta vuosilta.",
+      yearHint: "Valitse raporttivuosi tai kaikki vuodet.",
+      allYears: "Kaikki vuodet",
+      previousYear: "Edellinen vuosi",
+      nextYear: "Seuraava vuosi",
       chooseFile: "Valitse tiedosto",
       noFile: "Ei tiedostoa valittuna",
       generate: "Luo raportti",
@@ -84,6 +104,24 @@ export const translations = {
       title: "Crypto Tax Reports",
       subtitle:
         "Generate capital gains reports from your broker transaction statements.",
+      brandEyebrow: "REPORTING TOOL",
+      languageLabel: "Language",
+      accountLabel: "Account",
+      signedIn: "Signed in",
+      logIn: "Log in",
+      logOut: "Log out",
+      welcomeEyebrow: "CRYPTO TAX REPORTING",
+      welcomeTitle: "Make crypto tax reporting clearer.",
+      welcomeDescription:
+        "Turn transaction exports from supported brokers into capital gains calculations by currency. Review the report before using the figures in your tax return.",
+      welcomeFootnote:
+        "Reports are informational and do not replace tax advice.",
+      oidcNotConfigured:
+        "Sign-in is unavailable. The service administrator must configure OIDC.",
+      dashboardEyebrow: "YOUR WORKSPACE",
+      dashboardTitle: "Create a tax report",
+      dashboardDescription:
+        "Choose a broker and upload your complete transaction statement.",
       brokersTitle: "Brokers",
       coinmotionDescription: "CSV import",
       available: "Available",
@@ -103,7 +141,10 @@ export const translations = {
       completenessWarning:
         "Upload the complete Coinmotion export for the period, including buys, sales, transfers, and fees. Do not edit quantities or add balancing rows. The service cannot determine whether a small difference is immaterial for tax purposes.",
       yearLabel: "Report year (optional)",
-      yearHint: "Leave empty to include all years.",
+      yearHint: "Choose a report year or include all years.",
+      allYears: "All years",
+      previousYear: "Previous year",
+      nextYear: "Next year",
       chooseFile: "Choose file",
       noFile: "No file selected",
       generate: "Generate report",

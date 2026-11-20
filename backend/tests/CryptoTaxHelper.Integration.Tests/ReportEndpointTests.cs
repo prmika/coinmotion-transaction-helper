@@ -2,19 +2,32 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Encodings.Web;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using Xunit;
 
 namespace CryptoTaxHelper.Integration.Tests;
 
 public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
 
     public ReportEndpointTests(WebApplicationFactory<Program> factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.AddAuthentication("Test")
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
+        }));
+        _client = _factory.CreateClient();
     }
 
     private const string SampleCsv = """
@@ -51,6 +64,29 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.PostAsync("/report/generate", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Generate_MalformedCsv_DoesNotExposeParserExceptionDetails()
+    {
+        const string malformedCsv = """
+            time,type,fromCurrency,toCurrency,eurAmount,cryptoAmount,rate,fee,feeCurrency
+            2024-01-01T10:00:00+02:00,buy,EUR,BTC,not-a-number,1.0,10000,0,EUR
+            """;
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(malformedCsv));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "malformed.csv");
+
+        var response = await _client.PostAsync("/report/generate", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var detail = JsonDocument.Parse(await response.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("detail").GetString();
+        detail.Should().Be("Unable to process the uploaded file.");
+        detail.Should().NotContain("not-a-number");
+        detail.Should().NotContain("Input string");
+        detail.Should().NotContain("Invalid CSV data");
     }
 
     [Fact]
@@ -105,5 +141,106 @@ public class ReportEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await _client.PostAsync("/report/generate?year=2020", content);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Generate_WithoutAuthentication_ReturnsReport()
+    {
+        using var anonymous = _factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        using var content = CsvContent(SampleCsv);
+
+        var response = await anonymous.PostAsync("/report/generate", content);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        JsonDocument.Parse(await response.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("report_id").GetString().Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Download_AnonymousReport_ByReportIdWithoutAuthentication_ReturnsZip()
+    {
+        using var anonymous = _factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        var reportId = await GenerateAndGetId(anonymous, SampleCsv);
+
+        var response = await anonymous.GetAsync($"/report/download/{reportId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Download_ReportOwnedByAnotherUser_Returns404()
+    {
+        var reportId = await GenerateAndGetId(_client, SampleCsv);
+
+        using var otherUser = _factory.CreateClient();
+        otherUser.DefaultRequestHeaders.Add("X-Test-User", "another-user");
+        var downloadResponse = await otherUser.GetAsync($"/report/download/{reportId}");
+
+        downloadResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Download_ReportOwnedByUser_ReturnsZipForOwner()
+    {
+        var reportId = await GenerateAndGetId(_client, SampleCsv);
+
+        var ownerResponse = await _client.GetAsync($"/report/download/{reportId}");
+        ownerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    private static MultipartFormDataContent CsvContent(string csv)
+    {
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "test.csv");
+        return content;
+    }
+
+    private static async Task<string?> GenerateAndGetId(HttpClient client, string csv)
+    {
+        using var content = CsvContent(csv);
+        var response = await client.PostAsync("/report/generate", content);
+        return JsonDocument.Parse(await response.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("report_id").GetString();
+    }
+
+    [Fact]
+    public async Task Download_SameReportConcurrently_AllowsOnlyOneRequest()
+    {
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(SampleCsv));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", "test.csv");
+
+        var generateResponse = await _client.PostAsync("/report/generate", content);
+        var reportId = JsonDocument.Parse(await generateResponse.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("report_id").GetString();
+
+        var responses = await Task.WhenAll(
+            _client.GetAsync($"/report/download/{reportId}"),
+            _client.GetAsync($"/report/download/{reportId}"));
+
+        responses.Count(response => response.StatusCode == HttpStatusCode.OK).Should().Be(1);
+        responses.Count(response => response.StatusCode == HttpStatusCode.NotFound).Should().Be(1);
+    }
+
+    private sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+    {
+        public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
+            UrlEncoder encoder) : base(options, logger, encoder) { }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            if (Request.Headers.ContainsKey("X-Test-Anonymous"))
+                return Task.FromResult(AuthenticateResult.NoResult());
+
+            var identity = new ClaimsIdentity("Test");
+            identity.AddClaim(new Claim("sub", Request.Headers["X-Test-User"].FirstOrDefault() ?? "test-user"));
+            identity.AddClaim(new Claim("scope", "tax-helper.reports"));
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name)));
+        }
     }
 }

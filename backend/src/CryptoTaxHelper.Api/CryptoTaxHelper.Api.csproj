@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <ProjectReference Include="..\CryptoTaxHelper.Application\CryptoTaxHelper.Application.csproj" />
     <ProjectReference Include="..\CryptoTaxHelper.Infrastructure\CryptoTaxHelper.Infrastructure.csproj" />
   </ItemGroup>
