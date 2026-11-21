@@ -101,7 +101,7 @@ The Coinmotion import preserves the CSV quantity text and source row number. Bef
 
 Before uploading, provide the complete export, including purchases, sales, transfers, and fees, and relevant activity from other wallets or exchanges. A reconciliation failure must be investigated before filing; the application does not determine whether a difference is tax-relevant.
 
-The API currently permits the local frontend origin `http://localhost:5173` through CORS. It has no authentication, persistent storage, configured upload limit, or production deployment manifest; do not expose it publicly without addressing those concerns.
+The API currently permits the local frontend origin `http://localhost:5173` through CORS. Uploads are limited to `HttpLimits:Upload:MaxBytes` (default 10 MiB; oversize returns `413` with `code: upload_too_large`). `POST /report/generate` and `GET /report/download/{id}` are rate limited per client IP with a fixed window (`HttpLimits:RateLimits`, default 20 and 60 requests per 60 s; exceeding returns `429` with `code: rate_limited` and `Retry-After`). The rate limiter keys on the socket address; behind a reverse proxy all clients share the proxy's address until forwarded headers are configured. It has no production deployment manifest; do not expose it publicly without addressing the remaining concerns (see `DEVELOPMENT_PLAN.md`).
 
 ## Project structure
 
