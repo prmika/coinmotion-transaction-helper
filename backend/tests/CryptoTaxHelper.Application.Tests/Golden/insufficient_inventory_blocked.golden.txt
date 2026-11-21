@@ -1,0 +1,3 @@
+status=blocked
+broker=Coinmotion Oy
+deficit asset=BTC row=3

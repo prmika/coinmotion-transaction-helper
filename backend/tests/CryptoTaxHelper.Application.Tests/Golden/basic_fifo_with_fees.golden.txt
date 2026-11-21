@@ -1,0 +1,9 @@
+status=complete
+broker=Coinmotion Oy
+currency=BTC
+year=2021 wins=1678.00 losses=0.00 total=1678.00 buyVol=2512.50 sellVol=4200.00 profSell=4200.00 profBuy=2512.50 profFees=9.50 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+tx 2021-01-10T10:00:00+02:00 Buy amt=0.05000000 eur=1000.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=5.00
+tx 2021-02-10T10:00:00+02:00 Buy amt=0.08000000 eur=2000.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=10.00
+tx 2021-06-01T10:00:00+03:00 Sell amt=0.05000000 eur=1666.67 cb=1005.00 assumed=333.33 cbUsed=1005.00 method=fifo pl=657.50 rem=0.08000000 fee=4.17
+tx 2021-06-01T10:00:00+03:00 Sell amt=0.04000000 eur=1333.33 cb=1005.00 assumed=266.67 cbUsed=1005.00 method=fifo pl=325.00 rem=0.04000000 fee=3.33
+tx 2021-09-01T10:00:00+03:00 Sell amt=0.02000000 eur=1200.00 cb=502.50 assumed=240.00 cbUsed=502.50 method=fifo pl=695.50 rem=0.02000000 fee=2.00

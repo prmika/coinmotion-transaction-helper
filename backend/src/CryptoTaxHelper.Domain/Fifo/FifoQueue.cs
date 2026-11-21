@@ -8,7 +8,7 @@ public class FifoQueue
 
     public IReadOnlyCollection<PurchaseLot> Queue => _queue;
 
-    public void AddPurchase(double quantity, double pricePerUnit, DateTimeOffset time)
+    public void AddPurchase(decimal quantity, decimal pricePerUnit, DateTimeOffset time)
     {
         if (quantity <= 0)
             throw new ArgumentException("Purchase quantity must be positive", nameof(quantity));
@@ -18,17 +18,17 @@ public class FifoQueue
         _queue.AddLast(new PurchaseLot(quantity, pricePerUnit, time));
     }
 
-    public FifoResult CalculateCogs(double quantitySold, DateTimeOffset soldTime, double totalRevenue)
+    public FifoResult CalculateCogs(decimal quantitySold, DateTimeOffset soldTime, decimal totalRevenue)
     {
         if (quantitySold <= 0)
             throw new ArgumentException("Sell quantity must be positive", nameof(quantitySold));
         if (totalRevenue < 0)
             throw new ArgumentException("Total revenue cannot be negative", nameof(totalRevenue));
 
-        var cogs = 0.0;
-        var assumedCost = 0.0;
+        var cogs = 0m;
+        var assumedCost = 0m;
         var consumedLots = new List<ConsumedLot>();
-        var pricePerUnit = quantitySold > 0 ? totalRevenue / quantitySold : 0.0;
+        var pricePerUnit = quantitySold > 0 ? totalRevenue / quantitySold : 0m;
         var remainingToSell = quantitySold;
 
         while (remainingToSell > Constants.Epsilon)
@@ -71,14 +71,14 @@ public class FifoQueue
                 var remainingLot = new PurchaseLot(
                     lot.Quantity - remainingToSell, lot.PricePerUnit, lot.Time);
                 _queue.AddFirst(remainingLot);
-                remainingToSell = 0.0;
+                remainingToSell = 0m;
             }
         }
 
         return new FifoResult(cogs, assumedCost, consumedLots);
     }
 
-    public double RemainingQuantity()
+    public decimal RemainingQuantity()
     {
         return _queue.Sum(lot => lot.Quantity);
     }

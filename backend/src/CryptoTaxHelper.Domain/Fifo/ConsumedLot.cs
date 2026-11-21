@@ -1,3 +1,3 @@
 namespace CryptoTaxHelper.Domain.Fifo;
 
-public record ConsumedLot(double Quantity, double PricePerUnit, DateTimeOffset PurchaseTime);
+public record ConsumedLot(decimal Quantity, decimal PricePerUnit, DateTimeOffset PurchaseTime);

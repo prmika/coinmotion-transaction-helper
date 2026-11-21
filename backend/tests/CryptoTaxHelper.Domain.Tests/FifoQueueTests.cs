@@ -15,19 +15,19 @@ public class FifoQueueTests
     {
         var fifo = new FifoQueue();
 
-        fifo.AddPurchase(1.0, 10000.0, Ts("2024-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 10000.0m, Ts("2024-01-01T10:00:00+02:00"));
 
-        fifo.RemainingQuantity().Should().Be(1.0);
+        fifo.RemainingQuantity().Should().Be(1.0m);
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void AddPurchase_InvalidQuantity_Throws(double quantity)
+    public void AddPurchase_InvalidQuantity_Throws(int quantity)
     {
         var fifo = new FifoQueue();
 
-        var act = () => fifo.AddPurchase(quantity, 10000.0, Ts("2024-01-01T10:00:00+02:00"));
+        var act = () => fifo.AddPurchase(quantity, 10000.0m, Ts("2024-01-01T10:00:00+02:00"));
 
         act.Should().Throw<ArgumentException>();
     }
@@ -37,19 +37,19 @@ public class FifoQueueTests
     {
         var fifo = new FifoQueue();
 
-        var act = () => fifo.AddPurchase(1.0, -10.0, Ts("2024-01-01T10:00:00+02:00"));
+        var act = () => fifo.AddPurchase(1.0m, -10.0m, Ts("2024-01-01T10:00:00+02:00"));
 
         act.Should().Throw<ArgumentException>();
     }
 
     [Theory]
     [InlineData(0)]
-    [InlineData(-0.5)]
-    public void CalculateCogs_InvalidSellQuantity_Throws(double quantity)
+    [InlineData(-1)]
+    public void CalculateCogs_InvalidSellQuantity_Throws(int quantity)
     {
         var fifo = new FifoQueue();
 
-        var act = () => fifo.CalculateCogs(quantity, Ts("2024-02-01T10:00:00+02:00"), 0.0);
+        var act = () => fifo.CalculateCogs(quantity, Ts("2024-02-01T10:00:00+02:00"), 0.0m);
 
         act.Should().Throw<ArgumentException>();
     }
@@ -58,9 +58,9 @@ public class FifoQueueTests
     public void CalculateCogs_InsufficientInventory_Throws()
     {
         var fifo = new FifoQueue();
-        fifo.AddPurchase(0.1, 10000.0, Ts("2024-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(0.1m, 10000.0m, Ts("2024-01-01T10:00:00+02:00"));
 
-        var act = () => fifo.CalculateCogs(0.2, Ts("2024-02-01T10:00:00+02:00"), 0.2 * 15000.0);
+        var act = () => fifo.CalculateCogs(0.2m, Ts("2024-02-01T10:00:00+02:00"), 0.2m * 15000.0m);
 
         act.Should().Throw<InsufficientInventoryException>();
     }
@@ -69,30 +69,30 @@ public class FifoQueueTests
     public void CalculateCogs_PartialSell_ConsumesCorrectly()
     {
         var fifo = new FifoQueue();
-        fifo.AddPurchase(1.0, 10000.0, Ts("2024-01-01T10:00:00+02:00"));
-        fifo.AddPurchase(0.5, 12000.0, Ts("2024-01-10T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 10000.0m, Ts("2024-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(0.5m, 12000.0m, Ts("2024-01-10T10:00:00+02:00"));
 
-        var result = fifo.CalculateCogs(1.2, Ts("2024-02-01T10:00:00+02:00"), 1.2 * 15000.0);
+        var result = fifo.CalculateCogs(1.2m, Ts("2024-02-01T10:00:00+02:00"), 1.2m * 15000.0m);
 
-        result.CostOfGoodsSold.Should().BeApproximately(10000.0 + (0.2 * 12000.0), Constants.Epsilon);
-        result.AssumedCost.Should().BeApproximately((1.2 * 15000.0) * 0.2, Constants.Epsilon);
+        result.CostOfGoodsSold.Should().BeInRange((10000.0m + (0.2m * 12000.0m)) - Constants.Epsilon, (10000.0m + (0.2m * 12000.0m)) + Constants.Epsilon);
+        result.AssumedCost.Should().BeInRange(((1.2m * 15000.0m) * 0.2m) - Constants.Epsilon, ((1.2m * 15000.0m) * 0.2m) + Constants.Epsilon);
         result.ConsumedLots.Should().HaveCount(2);
         fifo.Queue.Should().HaveCount(1);
-        fifo.Queue.First().Quantity.Should().BeApproximately(0.3, Constants.Epsilon);
-        fifo.Queue.First().PricePerUnit.Should().Be(12000.0);
+        fifo.Queue.First().Quantity.Should().BeInRange((0.3m) - Constants.Epsilon, (0.3m) + Constants.Epsilon);
+        fifo.Queue.First().PricePerUnit.Should().Be(12000.0m);
     }
 
     [Fact]
     public void CalculateCogs_AcquisitionCostAssumption_CalculatesCorrectly()
     {
         var fifo = new FifoQueue();
-        fifo.AddPurchase(1.0, 1, Ts("2022-01-01T10:00:00+02:00"));
-        fifo.AddPurchase(1.0, 4, Ts("2023-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 1, Ts("2022-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 4, Ts("2023-01-01T10:00:00+02:00"));
 
-        var result = fifo.CalculateCogs(2.0, Ts("2024-02-01T10:00:00+02:00"), 20);
+        var result = fifo.CalculateCogs(2.0m, Ts("2024-02-01T10:00:00+02:00"), 20);
 
-        result.CostOfGoodsSold.Should().BeApproximately(5.0, Constants.Epsilon);
-        result.AssumedCost.Should().BeApproximately(4.0, Constants.Epsilon); // 0.2 * 20
+        result.CostOfGoodsSold.Should().BeInRange((5.0m) - Constants.Epsilon, (5.0m) + Constants.Epsilon);
+        result.AssumedCost.Should().BeInRange((4.0m) - Constants.Epsilon, (4.0m) + Constants.Epsilon); // 0.2m * 20
         result.ConsumedLots.Should().HaveCount(2);
         fifo.Queue.Should().BeEmpty();
     }
@@ -101,14 +101,14 @@ public class FifoQueueTests
     public void CalculateCogs_LongHoldingPeriod_Uses40PercentRate()
     {
         var fifo = new FifoQueue();
-        fifo.AddPurchase(1.0, 1, Ts("2010-06-01T10:00:00+02:00"));
-        fifo.AddPurchase(1.0, 4, Ts("2024-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 1, Ts("2010-06-01T10:00:00+02:00"));
+        fifo.AddPurchase(1.0m, 4, Ts("2024-01-01T10:00:00+02:00"));
 
-        var result = fifo.CalculateCogs(2.0, Ts("2024-12-01T10:00:00+02:00"), 20);
+        var result = fifo.CalculateCogs(2.0m, Ts("2024-12-01T10:00:00+02:00"), 20);
 
-        result.CostOfGoodsSold.Should().BeApproximately(5.0, Constants.Epsilon);
-        // First lot: 0.4 * 10 = 4.0, second lot: 0.2 * 10 = 2.0
-        result.AssumedCost.Should().BeApproximately(6.0, Constants.Epsilon);
+        result.CostOfGoodsSold.Should().BeInRange((5.0m) - Constants.Epsilon, (5.0m) + Constants.Epsilon);
+        // First lot: 0.4m * 10 = 4.0m, second lot: 0.2m * 10 = 2.0m
+        result.AssumedCost.Should().BeInRange((6.0m) - Constants.Epsilon, (6.0m) + Constants.Epsilon);
         result.ConsumedLots.Should().HaveCount(2);
     }
 
@@ -116,10 +116,10 @@ public class FifoQueueTests
     public void CalculateCogs_SmallRounding_DoesNotThrow()
     {
         var fifo = new FifoQueue();
-        fifo.AddPurchase(0.27622000, 1.0, Ts("2024-01-01T10:00:00+02:00"));
+        fifo.AddPurchase(0.27622000m, 1.0m, Ts("2024-01-01T10:00:00+02:00"));
 
         // Sell with tiny floating point excess
-        var act = () => fifo.CalculateCogs(0.27622000000001, Ts("2024-01-02T10:00:00+02:00"), 0.27622000000001);
+        var act = () => fifo.CalculateCogs(0.27622000000001m, Ts("2024-01-02T10:00:00+02:00"), 0.27622000000001m);
 
         act.Should().NotThrow();
     }

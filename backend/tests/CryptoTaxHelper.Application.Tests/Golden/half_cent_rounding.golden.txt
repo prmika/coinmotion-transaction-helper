@@ -1,0 +1,7 @@
+status=complete
+broker=Coinmotion Oy
+currency=ETH
+year=2022 wins=1.67 losses=1.55 total=0.12 buyVol=10.01 sellVol=10.13 profSell=5.01 profBuy=3.34 profFees=0.01 lossSell=5.13 lossBuy=6.67 lossFees=0.00
+tx 2022-01-01T10:00:00+02:00 Buy amt=0.30000000 eur=10.01 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=0.00
+tx 2022-02-01T10:00:00+02:00 Sell amt=0.10000000 eur=5.01 cb=3.34 assumed=1.00 cbUsed=3.34 method=fifo pl=1.67 rem=0.20000000 fee=0.01
+tx 2022-03-01T10:00:00+02:00 Sell amt=0.20000000 eur=5.13 cb=6.67 assumed=1.03 cbUsed=6.67 method=fifo pl=-1.55 rem=0.00000000 fee=0.00

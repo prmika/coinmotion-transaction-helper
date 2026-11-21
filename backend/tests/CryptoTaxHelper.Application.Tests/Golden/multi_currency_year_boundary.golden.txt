@@ -1,0 +1,14 @@
+status=complete
+broker=Coinmotion Oy
+currency=BTC
+year=2024 wins=0.00 losses=0.00 total=0.00 buyVol=0.00 sellVol=0.00 profSell=0.00 profBuy=0.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+year=2025 wins=16000.00 losses=0.00 total=16000.00 buyVol=15000.00 sellVol=31000.00 profSell=31000.00 profBuy=15000.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+tx 2024-12-30T11:00:00+02:00 Buy amt=1.00000000 eur=30000.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=0.00
+tx 2025-01-03T10:00:00+02:00 Sell amt=0.50000000 eur=31000.00 cb=15000.00 assumed=6200.00 cbUsed=15000.00 method=fifo pl=16000.00 rem=0.50000000 fee=0.00
+currency=ETH
+year=2024 wins=0.00 losses=0.00 total=0.00 buyVol=0.00 sellVol=0.00 profSell=0.00 profBuy=0.00 profFees=0.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+year=2025 wins=597.00 losses=0.00 total=597.00 buyVol=300.00 sellVol=900.00 profSell=900.00 profBuy=300.00 profFees=3.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+year=2026 wins=99.00 losses=0.00 total=99.00 buyVol=100.00 sellVol=200.00 profSell=200.00 profBuy=100.00 profFees=1.00 lossSell=0.00 lossBuy=0.00 lossFees=0.00
+tx 2024-12-30T10:00:00+02:00 Buy amt=2.00000000 eur=400.00 cb=- assumed=- cbUsed=- method=- pl=- rem=- fee=0.00
+tx 2025-01-02T10:00:00+02:00 Sell amt=1.50000000 eur=900.00 cb=300.00 assumed=180.00 cbUsed=300.00 method=fifo pl=597.00 rem=0.50000000 fee=3.00
+tx 2026-02-01T10:00:00+02:00 Sell amt=0.50000000 eur=200.00 cb=100.00 assumed=40.00 cbUsed=100.00 method=fifo pl=99.00 rem=0.00000000 fee=1.00
