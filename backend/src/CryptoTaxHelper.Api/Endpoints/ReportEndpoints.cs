@@ -1,3 +1,4 @@
+using CryptoTaxHelper.Api.Uploads;
 using CryptoTaxHelper.Application.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -68,9 +69,23 @@ public static class ReportEndpoints
 
         try
         {
+            // Size is already capped above, so buffering is bounded. Content is checked before any parsing.
+            using var upload = new MemoryStream();
+            await using (var source = file.OpenReadStream())
+                await source.CopyToAsync(upload, ct);
+            var bytes = upload.ToArray();
+
+            switch (CsvUploadValidator.Validate(bytes))
+            {
+                case CsvUploadValidator.Result.InvalidContent:
+                    return InvalidUpload(CsvUploadValidator.InvalidContentCode, CsvUploadValidator.InvalidContentMessage);
+                case CsvUploadValidator.Result.InvalidHeader:
+                    return InvalidUpload(CsvUploadValidator.InvalidHeaderCode, CsvUploadValidator.InvalidHeaderMessage);
+            }
+
             var parser = reportService.GetParser("coinmotion");
 
-            using var stream = file.OpenReadStream();
+            using var stream = new MemoryStream(bytes, writable: false);
             var transactions = await parser.ParseAsync(stream, ct);
 
             if (transactions.Count == 0)
@@ -126,6 +141,9 @@ public static class ReportEndpoints
     }
 
     private const long MultipartOverheadBytes = 64 * 1024;
+
+    private static IResult InvalidUpload(string code, string detail) =>
+        Results.BadRequest(new { code, detail });
 
     private static IResult UploadTooLarge(long maxBytes) =>
         Results.Json(new
